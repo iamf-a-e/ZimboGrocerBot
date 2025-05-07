@@ -374,42 +374,42 @@ products=(
     '''About this item
     Royal Baking Powder 200g
     Price: R25.99\n'''
-     "- Availability: In Stock\n\n"
+    "- Availability: In Stock\n\n"
 
     "*Product 38:*\n"
     "- Name: Flour\n"
     '''About this item
     Snowflake Cake Flour 2.5kg
     Price: R59.99\n'''
-     "- Availability: In Stock\n\n"
+    "- Availability: In Stock\n\n"
 
     "*Product 39:*\n"
     "- Name: Cooking Oil\n"
     '''About this item
     Zimgold Cooking Oil 2 Litres
     Price: R66.99\n'''
-     "- Availability: In Stock\n\n"
+    "- Availability: In Stock\n\n"
 
     "*Product 40:*\n"
     "- Name: Teabags\n"
     '''About this item
     Stella Teabags 100 pack
     Price: R42.99\n'''
-     "- Availability: In Stock\n\n"
+    "- Availability: In Stock\n\n"
 
     "*Product 41:*\n"
     "- Name: Everyday Milk Powder\n"
     '''About this item
     Everyday Milk Powder 400g
     Price: R67.99\n'''
-     "- Availability: In Stock\n\n"
+    "- Availability: In Stock\n\n"
 
     "*Product 42:*\n"
     "- Name: Hot Chocolate\n"
     '''About this item
     Lyons Hot Chocolate 125g
     Price: R42.99\n'''
-     "- Availability: In Stock\n\n"
+    "- Availability: In Stock\n\n"
 
     "*Product 43:*\n"
     "- Name: Brown bread\n"
@@ -431,35 +431,35 @@ products=(
     '''About this item
     Sta Soft Lavender 2l\n'''
     "Price: R59.99\n"
-     "-Availability: In Stock\n\n"
+    "-Availability: In Stock\n\n"
 
     "*Product 2:*\n"
     "- Name: Dishwashing Liquid\n"
     '''About this item
     Sunlight Dishwashing Liquid 750ml\n'''
     "Price: R35.99\n"
-     "-Availability: In Stock\n\n"
+    "-Availability: In Stock\n\n"
 
     "*Product 3:*\n"
     "- Name: Domestos\n"
     '''About this item
     Domestos Thick Bleach Assorted 750ml\n'''
     "Price: R39.99\n"
-     "-Availability: In Stock\n\n"
+    "-Availability: In Stock\n\n"
 
     "*Product 4:*\n"
     "- Name: Handy Andy\n"
     '''About this item
     Handy Andy Assorted 500ml\n'''
     "Price: R32.99\n"
-     "-Availability: In Stock\n\n"
+    "-Availability: In Stock\n\n"
 
     "*Product 5:*\n"
     "- Name: Jik\n"
     '''About this item
     Jik Assorted 750ml\n'''
     "Price: R29.99\n"
-     "-Availability: In Stock\n\n"
+    "-Availability: In Stock\n\n"
 
     "**Category-Personal Care**\n"
     "*Product 1:*\n"
@@ -467,42 +467,91 @@ products=(
     '''About this item
     Softex Toilet Tissue 1ply 4s\n'''
     "Price: R39.99\n"
-     "-Availability: In Stock\n\n"
+    "-Availability: In Stock\n\n"
 
     "*Product 2:*\n"
      "- Name: Tissue\n"
     '''About this item
     Lulu Toilet Tissue 1ply 4s\n'''
     "Price: R39.99\n"
-     "-Availability: In Stock\n\n"
+    "-Availability: In Stock\n\n"
 
     "*Product 3:*\n"
      "- Name: Tissue\n"
     '''About this item
     Wish Toilet Tissue 1ply 4s\n'''
     "Price: R39.99\n"
-     "-Availability: In Stock\n\n"
+    "-Availability: In Stock\n\n"
 
     "*Product 4:*\n"
      "- Name: Protex\n"
     '''About this item
     Protex Bath Soap Assorted 150g\n'''
     "Price: R21.99\n"
-     "-Availability: In Stock\n\n"
+    "-Availability: In Stock\n\n"
 
     "*Product 5:*\n"
      "- Name: Roll On\n"
     '''About this item
     Nivea Women's Roll On Assorted 50ml\n'''
     "Price: R33.99\n"
-     "-Availability: In Stock\n\n"
+    "-Availability: In Stock\n\n"
 
     "*Product 6:*\n"
-     "- Name: Body Lotion\n"
+    "- Name: Body Lotion\n"
     '''About this item
     Clere Lanolin Lotion 400ml\n'''
     "Price: R35.99\n"
-     "-Availability: In Stock\n\n"
+    "-Availability: In Stock\n\n"
+
+    "**Category-Snacks & Sweets**\n"
+    "*Product 1:*\n"
+    "- Name: Maputi\n"
+    '''About this item
+    Jena Maputi 15 pack\n'''
+    "Price: R23.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 2:*\n"
+    "- Name: Chips\n"
+    '''About this item
+    TiggiesAssorted 50s\n'''
+    "Price: R74.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 3:*\n"
+    "- Name: Chips\n"
+    '''About this item
+    Zim Naks Assorted 50s\n'''
+    "Price: R74.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 4:*\n"
+    "- Name: Chips\n"
+    '''About this item
+    Pringles Original 110g\n'''
+    "Price: R22.90\n"
+    "-Availability: In Stock\n\n"
+
+    "**Category-Stationery**\n"
+    "*Product 1:*\n"
+    "- Name: Plastic Cover\n"
+    '''About this item
+    Plastic Cover 3 Meter Roll\n'''
+    "Price: R7.99\n"
+    "-Availability: In Stock\n\n"
+
+    "- Name: Ruler\n"
+    '''About this item
+    Ruler 30cm\n'''
+    "Price: R6.99\n"
+    "-Availability: In Stock\n\n"
+
+    "- Name: Bond Paper\n"
+    '''About this item
+    A4 Bond Paper White\n'''
+    "Price: R126.99\n"
+    "-Availability: In Stock\n\n"
 
 )
 
