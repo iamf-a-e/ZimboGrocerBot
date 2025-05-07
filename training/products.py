@@ -461,6 +461,49 @@ products=(
     "Price: R29.99\n"
      "-Availability: In Stock\n\n"
 
+    "**Category-Personal Care**\n"
+    "*Product 1:*\n"
+     "- Name: Tissue\n"
+    '''About this item
+    Softex Toilet Tissue 1ply 4s\n'''
+    "Price: R39.99\n"
+     "-Availability: In Stock\n\n"
+
+    "*Product 2:*\n"
+     "- Name: Tissue\n"
+    '''About this item
+    Lulu Toilet Tissue 1ply 4s\n'''
+    "Price: R39.99\n"
+     "-Availability: In Stock\n\n"
+
+    "*Product 3:*\n"
+     "- Name: Tissue\n"
+    '''About this item
+    Wish Toilet Tissue 1ply 4s\n'''
+    "Price: R39.99\n"
+     "-Availability: In Stock\n\n"
+
+    "*Product 4:*\n"
+     "- Name: Protex\n"
+    '''About this item
+    Protex Bath Soap Assorted 150g\n'''
+    "Price: R21.99\n"
+     "-Availability: In Stock\n\n"
+
+    "*Product 5:*\n"
+     "- Name: Roll On\n"
+    '''About this item
+    Nivea Women's Roll On Assorted 50ml\n'''
+    "Price: R33.99\n"
+     "-Availability: In Stock\n\n"
+
+    "*Product 6:*\n"
+     "- Name: Body Lotion\n"
+    '''About this item
+    Clere Lanolin Lotion 400ml\n'''
+    "Price: R35.99\n"
+     "-Availability: In Stock\n\n"
+
 )
 
     #Continue listing all products in this format
