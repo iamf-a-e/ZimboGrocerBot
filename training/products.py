@@ -178,13 +178,48 @@ products=(
     '''About this item
     Dried sugar beans 500 g
     Price: R22.99\n'''
-    "Availability: In Stock\n\n"
+    "- Availability: In Stock\n\n"
     
     "*Product 16:*\n"
     "- Name: Rice\n"
     '''About this item
     Ekono/Ideal Rice 5 kg
     Price: R119.29\n'''
+    "- Availability: In Stock\n\n"
+
+    "*Product 17:*\n"
+    "- Name: Corned Beef\n"
+    '''About this item
+    Bullbrand Corned Beef 300g
+    Price: R39.99\n'''
+    "- Availability: In Stock\n\n"
+
+    "*Product 18:*\n"
+    "- Name: Margarine\n"
+    '''About this item
+    Buttercup Margarine 500g
+    Price: R44.99\n'''
+    "- Availability: In Stock\n\n"
+
+    "*Product 19:*\n"
+    "- Name: Cerevita\n"
+    '''About this item
+    Cerevita 500g
+    Price: R69.99\n'''
+    "- Availability: In Stock\n\n"
+
+    "*Product 20:*\n"
+    "- Name: Cooking Oil\n"
+    '''About this item
+    Crown Cooking Oil 2l
+    Price: R37.90\n'''
+    "- Availability: In Stock\n\n"
+
+    "*Product 21:*\n"
+    "- Name: Cooking Oil\n"
+    '''About this item
+    Delite Cooking Oil 2l
+    Price: R37.90\n'''
     "- Availability: In Stock\n\n"
 
 )
