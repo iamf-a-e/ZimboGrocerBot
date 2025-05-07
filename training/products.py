@@ -132,9 +132,9 @@ products=(
     "- Availability: In Stock\n\n"
         
     "*Product 9:*\n"
-    "- Name: Self-raising flour\n"
+    "- Name: Flour\n"
     '''About this item
-    Blue Ribbon Self Raising 2 kg
+    Blue Ribbon Self Raising Flour 2 kg
     Price: R37.99\n'''
     "- Availability: In Stock\n\n"
         
@@ -221,6 +221,132 @@ products=(
     Delite Cooking Oil 2l
     Price: R37.90\n'''
     "- Availability: In Stock\n\n"
+
+    "*Product 22:*\n"
+    "- Name: Dried Kapenta\n"
+    '''About this item
+    Dried Kapenta 1 kg
+    Price: R134.99\n'''
+    "- Availability: In Stock\n\n"
+
+    "*Product 23:*\n"
+    "- Name: Macaroni\n"
+    '''About this item
+    Fattis Macaroni 500g
+    Price: R22.99\n'''
+    "- Availability: In Stock\n\n"
+
+    "*Product 24:*\n"
+    "- Name: Gloria Flour\n"
+    '''About this item
+    Gloria Self Raising Flour 5kg
+    Price: R79.90\n'''
+    "- Availability: In Stock\n\n"
+
+    "*Product 25:*\n"
+    "- Name: Brown Sugar\n"
+    '''About this item
+    Huletts Brown Sugar 2kg
+    Price: R52.99\n\n'''
+    "- Availability: In Stock\n\n"
+
+    "*Product 26:*\n"
+    "- Name: Spaghetti\n"
+    '''About this item
+    Ideal Spaghetti 400g
+    Price: R9.99\n'''
+    "- Availability: In Stock\n\n"
+
+    "*Product 27:*\n"
+    "- Name: Jungle Oats\n"
+    '''About this item
+    Jungle Oats 1kg
+    Price: R44.99\n'''
+    "- Availability: In Stock\n\n"
+
+    "*Product 28:*\n"
+    "- Name: Kellog's Noodles Beef\n"
+    '''About this item
+    Kellog's Noodles Beef 5 pack
+    Price: R32.99\n'''
+    "- Availability: In Stock\n\n"
+
+    "*Product 29:*\n"
+    "- Name: Roller Meal\n"
+    '''About this item
+    Kitchen Pride Roller Meal 10kg
+    Price: R126.99\n'''
+    "- Availability: In Stock\n\n"
+
+    "*Product 30:*\n"
+    "- Name: Knorr Soup\n"
+    '''About this item
+    Knorr Brown Onion Soup 50g
+    Price: R7.99\n'''
+    "- Availability: In Stock\n\n"
+
+    "*Product 31:*\n"
+    "- Name: Lucky Star Pilchards\n"
+    '''About this item
+    Lucky Star Pilchards in Chilli Sauce 155g
+    Price: R16.99\n'''
+    "- Availability: In Stock\n\n"
+
+    "*Product 32:*\n"
+    "- Name: Rice\n"
+    '''About this item
+    Mahatma Rice 10kg
+    Price: R149.90\n'''
+    "- Availability: In Stock\n\n"
+
+    "*Product 33:*\n"
+    "- Name: Baking Powder\n"
+    '''About this item
+    Moirs Baking Powder 100g Refill
+    Price: R27.99\n'''
+    "- Availability: In Stock\n\n"
+
+    "*Product 34:*\n"
+    "- Name: Peanut Butter\n"
+    '''About this item
+    Peanut Butter 350ml
+    Price: R19.99\n'''
+    "- Availability: In Stock\n\n"
+
+    "*Product 35:*\n"
+    "- Name: Macaroni\n"
+    '''About this item
+    Polana Macaroni 1kg
+    Price: R20.00\n'''
+    "- Availability: In Stock\n\n"
+
+    "*Product 36:*\n"
+    "- Name: Roller Meal\n"
+    '''About this item
+    Roller Meal 10kg - Zim Meal, Continental
+    Price: R136.99\n'''
+    "- Availability: In Stock\n\n"
+
+    "*Product 37:*\n"
+    "- Name: Baking Powder\n"
+    '''About this item
+    Royal Baking Powder 200g
+    Price: R25.99\n'''
+     "- Availability: In Stock\n\n"
+
+    "*Product 38:*\n"
+    "- Name: Flour\n"
+    '''About this item
+    Snowflake Cake Flour 2.5kg
+    Price: R59.99\n'''
+     "- Availability: In Stock\n\n"
+
+    "*Product 39:*\n"
+    "- Name: Cooking Oil\n"
+    '''About this item
+    Zimgold Cooking Oil 2 Litres
+    Price: R66.99\n'''
+     "- Availability: In Stock\n\n"
 
 )
 
