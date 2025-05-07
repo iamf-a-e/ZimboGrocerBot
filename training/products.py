@@ -15,14 +15,14 @@ products=(
     "-Availability: In Stock\n\n"
 
     "*Product 3:*\n"
-    "- Name: Cheddar Cheese\n"
+    "- Name: Cheese\n"
     '''About this item
     Parmalat cheddar cheese
     Price: R89.99\n'''
     "-Availability: In Stock\n\n"
 
     "*Product 4:*\n"
-    "- Name: Beef Polony\n"
+    "- Name: Polony\n"
     '''About this item
     Colcom beef polony 3 kg
     Price: R299.00\n'''
@@ -40,6 +40,104 @@ products=(
     '''About this item
     PnP 12 slices cheddar cheese
     Price: R89.99\n'''
+    "-Availability: In Stock\n\n"
+
+    "*Product 7:*\n"
+    "- Name: Polony\n"
+    '''About this item
+    Colcom Tastee French Polony 750g\n'''
+    "Price: R116.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 8:*\n"
+    "- Name: Polony\n"
+    '''About this item
+    Colcom Chicken Polony 3kg\n'''
+    "Price: R219.90\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 9:*\n"
+    "- Name: Pork\n"
+    '''About this item
+    Bulk Mixed Pork 1kg\n'''
+    "Price: R128.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 10:*\n"
+    "- Name:  Potatoes\n"
+    '''About this item
+    Potatoes 7.5kg (small pocket)\n'''
+    "Price: R219.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 11:*\n"
+    "- Name:  Polony\n"
+    '''About this item
+    Colcom Tastee Chicken Polony 1kg\n'''
+    "Price: R34.90\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 12:*\n"
+    "- Name:  Polony\n"
+    '''About this item
+    Colcom Garlic Polony 3kg\n'''
+    "Price: R220.00\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 13:*\n"
+    "- Name:  Polony\n"
+    '''About this item
+    Colcom Tastee Beef Polony 1kg\n'''
+    "Price: R35.00\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 14:*\n"
+    "- Name:  Eggs\n"
+    '''About this item
+    Wrapped Mixed Size Fresh Eggs 30\n'''
+    "Price: R149.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 15:*\n"
+    "- Name:  Sausages\n"
+    '''About this item
+    Texas Meats Juicy Boerewors\n'''
+    "Price: R159.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 16:*\n"
+    "- Name:  Eggs\n"
+    '''About this item
+    Unwrapped Small Size Fresh Eggs 30s\n'''
+    "Price: R99.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 17:*\n"
+    "- Name:  Chicken\n"
+    '''About this item
+    Big Brother Mixed Chicken Cuts 2kg\n'''
+    "Price: R179.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 18:*\n"
+    "- Name:  Chicken\n"
+    '''About this item
+    Sable Mixed Chicken Cuts 2kg\n'''
+    "Price: R179.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 19:*\n"
+    "- Name:  Yoghurt\n"
+    '''About this item
+    Dairibord Yoghurt 150ml\n'''
+    "Price: R15.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 20:*\n"
+    "- Name:  Yoghurt\n"
+    '''About this item
+    Kefalos Yoghurt 150ml\n'''
+    "Price: R15.99\n"
     "-Availability: In Stock\n\n"
     
   "**Category-Beverages**\n"
