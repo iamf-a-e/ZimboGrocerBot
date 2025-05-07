@@ -17,7 +17,7 @@ products=(
     "*Product 3:*\n"
     "- Name: Cheddar Cheese\n"
     '''About this item
-    Parmalat/Clover/PnP 12 slices cheddar cheese
+    Parmalat cheddar cheese
     Price: R89.99\n'''
     "-Availability: In Stock\n\n"
 
@@ -26,6 +26,20 @@ products=(
     '''About this item
     Colcom beef polony 3 kg
     Price: R299.00\n'''
+    "-Availability: In Stock\n\n"
+
+    "*Product 5:*\n"
+    "- Name: Cheese\n"
+    '''About this item
+    Parmalat cheddar cheese
+    Price: R89.99\n'''
+    "-Availability: In Stock\n\n"
+
+    "*Product 6:*\n"
+    "- Name: Cheese\n"
+    '''About this item
+    PnP 12 slices cheddar cheese
+    Price: R89.99\n'''
     "-Availability: In Stock\n\n"
     
   "**Category-Beverages**\n"
@@ -41,6 +55,34 @@ products=(
     '''About this item 
     Mazoe Orange Crush 2l\n'''
     "Price: R69.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 3:*\n"
+    "- Name: Mazoe Raspberry\n"
+    '''About this item
+    Mazoe Raspberry 2 litres
+    Price: R67.99\n'''
+    "-Availability: In Stock\n\n"
+
+    "*Product 4:*\n"
+    "- Name: Sprite\n"
+    '''About this item
+    Sprite 2 litres\n'''
+    "Price: R37.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 5:*\n"
+    "- Name: Stone Ginger\n"
+    '''About this item
+    Stone Ginger 2 litres\n'''
+    "Price: R37.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 6:*\n"
+    "- Name: Fanta\n"
+    '''About this item
+    Fanta Orange 2 litres\n'''
+    "Price: R37.99\n"
     "-Availability: In Stock\n\n"
 
   "**Category-Personal Care**\n"
@@ -99,14 +141,14 @@ products=(
     "*Product 4:*\n"
     "- Name: Brown bread\n"
     '''About this item
-    Bakers Inn/Proton brown
+    Bakers Inn Brown Bread
     Price: R23.99\n'''
     "- Availability: In Stock\n\n"
         
     "*Product 5:*\n"
     "- Name: White loaf\n"
     '''About this item
-    Bakers Inn/Proton white loaf
+    Bakers Inn white loaf
     Price: R23.99\n'''
     "- Availability: In Stock\n\n"
         
@@ -347,6 +389,41 @@ products=(
     Zimgold Cooking Oil 2 Litres
     Price: R66.99\n'''
      "- Availability: In Stock\n\n"
+
+    "*Product 40:*\n"
+    "- Name: Teabags\n"
+    '''About this item
+    Stella Teabags 100 pack
+    Price: R42.99\n'''
+     "- Availability: In Stock\n\n"
+
+    "*Product 41:*\n"
+    "- Name: Everyday Milk Powder\n"
+    '''About this item
+    Everyday Milk Powder 400g
+    Price: R67.99\n'''
+     "- Availability: In Stock\n\n"
+
+    "*Product 42:*\n"
+    "- Name: Hot Chocolate\n"
+    '''About this item
+    Lyons Hot Chocolate 125g
+    Price: R42.99\n'''
+     "- Availability: In Stock\n\n"
+
+    "*Product 43:*\n"
+    "- Name: Brown bread\n"
+    '''About this item
+    Proton brown bread
+    Price: R23.99\n'''
+    "- Availability: In Stock\n\n"
+
+    "*Product 5:*\n"
+    "- Name: White loaf\n"
+    '''About this item
+    Proton white loaf
+    Price: R23.99\n'''
+    "- Availability: In Stock\n\n"
 
 )
 
