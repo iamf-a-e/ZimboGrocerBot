@@ -139,6 +139,20 @@ products=(
     Kefalos Yoghurt 150ml\n'''
     "Price: R15.99\n"
     "-Availability: In Stock\n\n"
+
+    "*Product 21:*\n"
+    "- Name:  Fresh Milk\n"
+    '''About this item
+    Dendairy Long Life Full Cream Milk 1 litre\n'''
+    "Price: R28.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 22:*\n"
+    "- Name:  Fresh Milk\n"
+    '''About this item
+    Dendairy Low Fat Long Life Milk\n'''
+    "Price: R28.99\n"
+    "-Availability: In Stock\n\n"
     
   "**Category-Beverages**\n"
     "*Product 1:*\n"
@@ -149,14 +163,14 @@ products=(
     "-Availability: In Stock\n\n"
 
     "*Product 2:*\n"
-    "- Name: Mazoe Orange Crush\n"
+    "- Name: Mazoe\n"
     '''About this item 
     Mazoe Orange Crush 2l\n'''
     "Price: R69.99\n"
     "-Availability: In Stock\n\n"
 
     "*Product 3:*\n"
-    "- Name: Mazoe Raspberry\n"
+    "- Name: Mazoe\n"
     '''About this item
     Mazoe Raspberry 2 litres
     Price: R67.99\n'''
@@ -181,6 +195,83 @@ products=(
     '''About this item
     Fanta Orange 2 litres\n'''
     "Price: R37.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 7:*\n"
+    "- Name: Pine Nut\n"
+    '''About this item
+    Pine Nut Soft Drink 2L\n'''
+    "Price: R37.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 8:*\n"
+    "- Name:  Mazoe\n"
+    '''About this item
+    Mazoe Blackberry 2L\n'''
+    "Price: R68.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 9:*\n"
+    "- Name:  Quench\n"
+    '''About this item
+    Quench Mango 2L\n'''
+    "Price: R32.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 10:*\n"
+    "- Name:  Maheu\n"
+    '''About this item
+    Pfuko Dairibord Maheu 500ml\n'''
+    "Price: R14.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 11:*\n"
+    "- Name:  Pepsi\n"
+    '''About this item
+    Pepsi (500ml x 24)\n'''
+    "Price: R178.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 12:*\n"
+    "- Name:  Mirinda\n"
+    '''About this item
+    Mirinda (500ml x 24)\n'''
+    "Price: R178.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 13:*\n"
+    "- Name:  Cool Splash\n"
+    '''About this item
+    Cool Splash 5 litre Orange Juice\n'''
+    "Price: R99.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 14:*\n"
+    "- Name:  Cool Splash\n"
+    '''About this item
+    Cool Splash Raspberry 5 litres\n'''
+    "Price: R85.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 15:*\n"
+    "- Name:  Cool Splash\n"
+    '''About this item
+    Cool Splash Blackberry 5 litres\n'''
+    "Price: R85.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 16:*\n"
+    "- Name:  Quench\n"
+    '''About this item
+    Quench Mango 5L\n'''
+    "Price: R92.25\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 17:*\n"
+    "- Name:  Fruitade\n"
+    '''About this item
+    Fruitade 2L Orange Juice\n'''
+    "Price: R32.90\n"
     "-Availability: In Stock\n\n"
 
   "**Category-Personal Care**\n"
