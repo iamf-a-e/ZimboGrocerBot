@@ -425,6 +425,42 @@ products=(
     Price: R23.99\n'''
     "- Availability: In Stock\n\n"
 
+    "**Category-Household**\n"
+    "*Product 1:*\n"
+    "- Name: Sta Soft\n"
+    '''About this item
+    Sta Soft Lavender 2l\n'''
+    "Price: R59.99\n"
+     "-Availability: In Stock\n\n"
+
+    "*Product 2:*\n"
+    "- Name: Dishwashing Liquid\n"
+    '''About this item
+    Sunlight Dishwashing Liquid 750ml\n'''
+    "Price: R35.99\n"
+     "-Availability: In Stock\n\n"
+
+    "*Product 3:*\n"
+    "- Name: Domestos\n"
+    '''About this item
+    Domestos Thick Bleach Assorted 750ml\n'''
+    "Price: R39.99\n"
+     "-Availability: In Stock\n\n"
+
+    "*Product 4:*\n"
+    "- Name: Handy Andy\n"
+    '''About this item
+    Handy Andy Assorted 500ml\n'''
+    "Price: R32.99\n"
+     "-Availability: In Stock\n\n"
+
+    "*Product 5:*\n"
+    "- Name: Jik\n"
+    '''About this item
+    Jik Assorted 750ml\n'''
+    "Price: R29.99\n"
+     "-Availability: In Stock\n\n"
+
 )
 
     #Continue listing all products in this format
