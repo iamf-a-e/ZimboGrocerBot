@@ -299,10 +299,101 @@ products=(
     "-Availability: Out of Stock\n\n"
 
     "*Product 2:*\n"
-    "- Name: Wipes\n"
+    "- Name: Baby Wipes\n"
     '''About this item
     Pampers Wipes 64 pack\n'''
     "Price: R31.90\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 3:*\n"
+    "- Name: Baby Diapers\n"
+    '''About this item
+    Huggies Dry Comfort Jumbo Size 5 (44s)\n'''
+    "Price: R299.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 4:*\n"
+    "- Name: Baby Jelly\n"
+    '''About this item
+    Johnson and Johnson Scented Baby Jelly 325ml\n'''
+    "Price: R52.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 5:*\n"
+    "- Name: Baby Jelly\n"
+    '''About this item
+    Johnson and Johnson Scented Baby Jelly 325ml\n'''
+    "Price: R52.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 6:*\n"
+    "- Name: Baby Jelly\n"
+    '''About this item
+    Vaseline Baby Jelly 250g\n'''
+    "Price: R31.90\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 7:*\n"
+    "- Name: Baby Wipes\n"
+    '''About this item
+    Predo Baby Wipes Assorted 120s\n'''
+    "Price: R52.90\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 8:*\n"
+    "- Name: Baby Diapers\n"
+    '''About this item
+    Huggies Dry Comfort Size 3 Jumbo (76)\n'''
+    "Price: R299.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 9:*\n"
+    "- Name: Baby Diapers\n"
+    '''About this item
+    Huggies Dry Comfort Size 2 Jumbo (94)\n'''
+    "Price: R299.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 10:*\n"
+    "- Name: Baby Diapers\n"
+    '''About this item
+    Huggies Dry Comfort Size 4 Jumbo\n'''
+    "Price: R299.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 11:*\n"
+    "- Name: Aqueous Cream\n"
+    '''About this item
+    Bennetts Aqueous Cream 500ml\n'''
+    "Price: R39.30\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 12:*\n"
+    "- Name: Baby Wipes\n"
+    '''About this item
+    Predo Baby Wipes Assorted 80s\n'''
+    "Price: R38.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 13:*\n"
+    "- Name: Petroleum Jelly\n"
+    '''About this item
+    Crez Babyline Petroleum Jelly 500g\n'''
+    "Price: R42.99\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 14:*\n"
+    "- Name: Aqueous Cream\n"
+    '''About this item
+    Johnson and Johnson Lightly Fragranced Aqueous Cream 350ml\n'''
+    "Price: R39.90\n"
+    "-Availability: In Stock\n\n"
+
+    "*Product 15:*\n"
+    "- Name: Formula\n"
+    '''About this item
+    Nan 1: Infant Formula Optipro 400g\n'''
+    "Price: R79.99\n"
     "-Availability: In Stock\n\n"
 
     "**Category- Pantry**\n"
