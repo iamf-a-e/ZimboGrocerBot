@@ -62,8 +62,22 @@ instructions = (
     "**Delivery Locations:**\n\n"
     f"- Kwekwe\n"
     f"- Kadoma\n"
+    f"- Chegutu\n"
+    f"- Gweru\n"
+    f"- Marondera\n"
+    f"- Macheke\n"
+    f"- Headlands\n"
+    f"- Rusape\n"
+    f"- Chinhoyi\n"
+    f"- Banket\n"
+    f"- Chitungiza\n"
+    f"- Norton\n"
+    f"- Ruwa\n"
+    f"- Domboshava\n"
     f"- Harare\n\n"
+
     
+
     "Example:\n\n"
     
     "User: Hi, do you deliver?.\n\n"
@@ -83,7 +97,8 @@ instructions = (
 
     "User: Harare.\n\n"
 
-    "Your answer: Yes, we do deliver in Harare and we have a collection point as well at 42 Mbuya Nehanda Street, Harare CBD.\n"
+    "Your answer: Yes, we do deliver evryday in Harare, Chitungiza, Norton, Ruwa, Domboshava and we have a collection point as well at 42 Mbuya Nehanda Street, Harare CBD.\n"
+    "In other cities and towns we deliver once every month.\n"
     
     "**Handling Product Image Requests:**\n\n"
     "In this section I will tell you about how to send an image of a particular product to the customer.\n"
