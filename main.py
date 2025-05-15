@@ -13,11 +13,11 @@ logging.basicConfig(level=logging.INFO)
 # Environment variables
 wa_token = os.environ.get("WA_TOKEN")  # WhatsApp API Key
 gen_api = os.environ.get("GEN_API")  # Gemini API Key
+owner_phone = os.environ.get("OWNER_PHONE")  # Owner's phone number with country code
 owner_phone = os.environ.get("OWNER_PHONE_1")
 owner_phone = os.environ.get("OWNER_PHONE_2")
 owner_phone = os.environ.get("OWNER_PHONE_3")
 owner_phone = os.environ.get("OWNER_PHONE_4")
-owner_phone = os.environ.get("OWNER_PHONE")  # Owner's phone number with country code
 
 
 app = Flask(__name__)
@@ -153,7 +153,7 @@ def message_handler(data, phone_id):
         elif prompt in ["no", "not now"]:
             response_message = "Alright! Let me know if you change your mind."
             send(response_message, sender, phone_id)
-        elif user is None:
+        elif user is None and prompt:
             # Assume the prompt is the user's name
             payer_name = prompt.title()  # Format name correctly
             payer_phone = sender  # Use the sender's phone number
@@ -193,7 +193,7 @@ def message_handler(data, phone_id):
         elif prompt in ["yes", "no"] and "selected_product" in user_states[sender]:
             if prompt == "yes":
                 response_message = f"{user_states[sender]['selected_product'].name} has been added to your cart!"
-                # Optionally, you can clear the selection after adding to cart
+                # Optionally, clear selections after adding to cart
                 user_states[sender].pop("selected_product", None)
                 user_states[sender].pop("selected_category", None)  # Clear selected category if desired
             else:
