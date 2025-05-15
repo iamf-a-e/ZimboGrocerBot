@@ -13,11 +13,11 @@ logging.basicConfig(level=logging.INFO)
 # Environment variables
 wa_token = os.environ.get("WA_TOKEN")  # WhatsApp API Key
 gen_api = os.environ.get("GEN_API")  # Gemini API Key
-owner_phone = os.environ.get("OWNER_PHONE")  # Owner's phone number with country code
 owner_phone = os.environ.get("OWNER_PHONE_1")
 owner_phone = os.environ.get("OWNER_PHONE_2")
 owner_phone = os.environ.get("OWNER_PHONE_3")
 owner_phone = os.environ.get("OWNER_PHONE_4")
+owner_phone = os.environ.get("OWNER_PHONE")  # Owner's phone number with country code
 
 
 app = Flask(__name__)
@@ -161,23 +161,23 @@ def message_handler(data, phone_id):
             user_states[sender]["user"] = user
 
             categories = order_system.list_categories()
-            # Number the categories for user display
-            category_list = "\n".join([f"{idx + 1}. {category}" for idx, category in enumerate(categories)])
+            # Number the categories as letters for user display
+            category_list = "\n".join([f"{chr(65 + idx)}. {category}" for idx, category in enumerate(categories)])
             response_message = f"Thank you, {payer_name}! Available categories:\n{category_list}"
             send(response_message, sender, phone_id)
-        elif user is not None and prompt.isdigit():
-            category_index = int(prompt) - 1
+        elif user is not None and prompt.isalpha() and len(prompt) == 1:
+            category_index = ord(prompt.upper()) - 65  # Convert letter to index
             categories = order_system.list_categories()
             if 0 <= category_index < len(categories):
                 selected_category = categories[category_index]
                 products = order_system.list_products(selected_category)
                 # List products with numbers
-                product_list = "\n".join([f"{idx + 1}. {product.name} - ${product.price}: {product.description}" for idx, product in enumerate(products)])
+                product_list = "\n".join([f"{idx + 1}. {product.name} - R{product.price}: {product.description}" for idx, product in enumerate(products)])
                 response_message = f"Products in {selected_category}:\n{product_list}\nPlease select a product by number."
                 user_states[sender]["selected_category"] = selected_category  # Store selected category
                 user_states[sender].pop("selected_product", None)  # Clear previously selected product
             else:
-                response_message = "Invalid category selection. Please choose a number from the list."
+                response_message = "Invalid category selection. Please choose a letter from the list."
             send(response_message, sender, phone_id)
         elif user is not None and prompt.isdigit() and "selected_category" in user_states[sender]:
             product_index = int(prompt) - 1
@@ -186,7 +186,7 @@ def message_handler(data, phone_id):
             if 0 <= product_index < len(products):
                 selected_product = products[product_index]
                 user_states[sender]["selected_product"] = selected_product  # Store selected product
-                response_message = f"You selected: {selected_product.name} - ${selected_product.price}. Would you like to add it to your cart? (yes/no)"
+                response_message = f"You selected: {selected_product.name} - R{selected_product.price}. Would you like to add it to your cart? (yes/no)"
             else:
                 response_message = "Invalid product selection. Please choose a number from the list."
             send(response_message, sender, phone_id)
