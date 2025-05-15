@@ -175,6 +175,7 @@ def message_handler(data, phone_id):
                 product_list = "\n".join([f"{idx + 1}. {product.name} - ${product.price}: {product.description}" for idx, product in enumerate(products)])
                 response_message = f"Products in {selected_category}:\n{product_list}\nPlease select a product by number."
                 user_states[sender]["selected_category"] = selected_category  # Store selected category
+                user_states[sender].pop("selected_product", None)  # Clear previously selected product
             else:
                 response_message = "Invalid category selection. Please choose a number from the list."
             send(response_message, sender, phone_id)
@@ -194,6 +195,7 @@ def message_handler(data, phone_id):
                 response_message = f"{user_states[sender]['selected_product'].name} has been added to your cart!"
                 # Optionally, you can clear the selection after adding to cart
                 user_states[sender].pop("selected_product", None)
+                user_states[sender].pop("selected_category", None)  # Clear selected category if desired
             else:
                 response_message = "No problem! Let me know if you need anything else."
                 user_states[sender].pop("selected_product", None)  # Clear selection
