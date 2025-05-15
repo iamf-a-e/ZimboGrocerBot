@@ -14,6 +14,11 @@ logging.basicConfig(level=logging.INFO)
 wa_token = os.environ.get("WA_TOKEN")  # WhatsApp API Key
 gen_api = os.environ.get("GEN_API")  # Gemini API Key
 owner_phone = os.environ.get("OWNER_PHONE")  # Owner's phone number with country code
+owner_phone = os.environ.get("OWNER_PHONE_1")
+owner_phone = os.environ.get("OWNER_PHONE_2")
+owner_phone = os.environ.get("OWNER_PHONE_3")
+owner_phone = os.environ.get("OWNER_PHONE_4")
+
 
 app = Flask(__name__)
 
