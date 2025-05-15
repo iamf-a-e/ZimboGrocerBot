@@ -14,11 +14,6 @@ logging.basicConfig(level=logging.INFO)
 wa_token = os.environ.get("WA_TOKEN")  # WhatsApp API Key
 gen_api = os.environ.get("GEN_API")  # Gemini API Key
 owner_phone = os.environ.get("OWNER_PHONE")  # Owner's phone number with country code
-owner_phone = os.environ.get("OWNER_PHONE_1")
-owner_phone = os.environ.get("OWNER_PHONE_2")
-owner_phone = os.environ.get("OWNER_PHONE_3")
-owner_phone = os.environ.get("OWNER_PHONE_4")
-
 
 app = Flask(__name__)
 
@@ -184,9 +179,16 @@ def message_handler(data, phone_id):
             products = order_system.list_products(selected_category)
             if 0 <= product_index < len(products):
                 selected_product = products[product_index]
-                response_message = f"You selected: {selected_product.name} - ${selected_product.price}. Would you like to add it to your cart?"
+                user_states[sender]["selected_product"] = selected_product  # Store selected product
+                response_message = f"You selected: {selected_product.name} - ${selected_product.price}. Would you like to add it to your cart? (yes/no)"
             else:
                 response_message = "Invalid product selection. Please choose a number from the list."
+            send(response_message, sender, phone_id)
+        elif prompt in ["yes", "no"] and "selected_product" in user_states[sender]:
+            if prompt == "yes":
+                response_message = f"{user_states[sender]['selected_product'].name} has been added to your cart!"
+            else:
+                response_message = "No problem! Let me know if you need anything else."
             send(response_message, sender, phone_id)
     else:
         send("This format is not supported by the bot ☹", sender, phone_id)
