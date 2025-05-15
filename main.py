@@ -192,8 +192,11 @@ def message_handler(data, phone_id):
         elif prompt in ["yes", "no"] and "selected_product" in user_states[sender]:
             if prompt == "yes":
                 response_message = f"{user_states[sender]['selected_product'].name} has been added to your cart!"
+                # Optionally, you can clear the selection after adding to cart
+                user_states[sender].pop("selected_product", None)
             else:
                 response_message = "No problem! Let me know if you need anything else."
+                user_states[sender].pop("selected_product", None)  # Clear selection
             send(response_message, sender, phone_id)
     else:
         send("This format is not supported by the bot ☹", sender, phone_id)
