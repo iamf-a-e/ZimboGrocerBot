@@ -47,14 +47,13 @@ class User:
     def __init__(self, payer_name, payer_phone):
         self.payer_name = payer_name
         self.payer_phone = payer_phone
-        self.recipients = {}
+        self.cart = []  # Initialize the cart
 
-    def add_recipient(self, recipient_name, recipient_phone, address, id_number):
-        self.recipients[recipient_name] = {
-            'phone': recipient_phone,
-            'address': address,
-            'id_number': id_number
-        }
+    def add_to_cart(self, product):
+        self.cart.append(product)
+
+    def get_cart_contents(self):
+        return self.cart
 
 # Product and Category classes
 class Product:
@@ -192,10 +191,16 @@ def message_handler(data, phone_id):
             send(response_message, sender, phone_id)
         elif prompt in ["yes", "no"] and "selected_product" in user_states[sender]:
             if prompt == "yes":
-                response_message = f"{user_states[sender]['selected_product'].name} has been added to your cart!"
-                # Optionally, clear selections after adding to cart
+                # Add the product to the user's cart
+                user.add_to_cart(user_states[sender]['selected_product'])
+                
+                # Generate cart contents
+                cart_contents = "\n".join([f"{item.name} - R{item.price}" for item in user.get_cart_contents()])
+                response_message = f"{user_states[sender]['selected_product'].name} has been added to your cart!\nCurrent cart:\n{cart_contents}"
+                
+                # Clear selections after adding to cart
                 user_states[sender].pop("selected_product", None)
-                user_states[sender].pop("selected_category", None)  # Clear selected category if desired
+                user_states[sender].pop("selected_category", None)
             else:
                 response_message = "No problem! Let me know if you need anything else."
                 user_states[sender].pop("selected_product", None)  # Clear selection
