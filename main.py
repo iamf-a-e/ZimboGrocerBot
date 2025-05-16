@@ -144,10 +144,16 @@ def message_handler(data, phone_id):
         user = user_states[sender]["user"]
 
         if prompt in ["hi", "hie", "hello", "hey"]:
-            response_message = "Hello! Welcome to our service. Would you like to place an order? (yes/no)"
+            if user is not None:
+                response_message = f"Hi {user.payer_name}! Welcome back! Would you like to place an order? (yes/no)"
+            else:
+                response_message = "Hello! Welcome to our service. What's your name?"
             send(response_message, sender, phone_id)
         elif prompt == "yes":
-            response_message = "Great! What's your name?"
+            if user is None:
+                response_message = "Great! What's your name?"
+            else:
+                response_message = "Great! Let's continue with your order."
             send(response_message, sender, phone_id)
         elif prompt in ["no", "not now"]:
             response_message = "Alright! Let me know if you change your mind."
