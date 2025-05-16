@@ -150,6 +150,9 @@ def message_handler(data, phone_id):
         elif prompt == "yes":
             if user is None:
                 response_message = "Great! What's your name?"
+            else:
+                response_message = "What would you like to order?"
+            send(response_message, sender, phone_id)
         elif prompt in ["no", "not now"]:
             response_message = "Alright! Let me know if you change your mind."
             send(response_message, sender, phone_id)
@@ -197,7 +200,7 @@ def message_handler(data, phone_id):
                 
                 # Generate cart contents
                 cart_contents = "\n".join([f"{item.name} - R{item.price}" for item in user.get_cart_contents()])
-                response_message = f"{user_states[sender]['selected_product'].name} has been added to your cart!\nCurrent cart:\n{cart_contents}\nWould you like to add anything else to your cart? (yes/no)"
+                response_message = f"{user_states[sender]['selected_product'].name} has been successfully added to your cart!\nCurrent cart:\n{cart_contents}\nWould you like to add anything else to your cart? (yes/no)"
                 
                 # Clear selections after adding to cart
                 user_states[sender].pop("selected_product", None)
