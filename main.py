@@ -28,7 +28,7 @@ user_states = {}
 # Database setup
 db = False
 if db:
-    db_url = os.environ.get("DB_URL")  # Database URL
+    db_url = os.environ.get("mysql+pymysql://root:@localhost:3306/mydatabase")  # Database URL
     engine = create_engine(db_url)
     Session = sessionmaker(bind=engine)
     Base = declarative_base()
