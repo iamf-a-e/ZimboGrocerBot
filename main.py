@@ -20,11 +20,7 @@ owner_phone_4 = os.environ.get("OWNER_PHONE_4")
 
 app = Flask(__name__)
 
-model = genai.GenerativeModel(model_name=model_name,
-                              generation_config=generation_config,
-                              safety_settings=safety_settings)
 
-convo = model.start_chat(history=[])
 convo.send_message(instructions.instructions)
 
 
