@@ -13,12 +13,10 @@ logging.basicConfig(level=logging.INFO)
 # Environment variables
 wa_token = os.environ.get("WA_TOKEN")  # WhatsApp API Key
 gen_api = os.environ.get("GEN_API")  # Gemini API Key
-owner_phone = os.environ.get("OWNER_PHONE")  # Owner's phone number with country code
-owner_phone = os.environ.get("OWNER_PHONE_1")
-owner_phone = os.environ.get("OWNER_PHONE_2")
-owner_phone = os.environ.get("OWNER_PHONE_3")
-owner_phone = os.environ.get("OWNER_PHONE_4")
-
+owner_phone_1 = os.environ.get("OWNER_PHONE_1")  # Owner's phone number with country code
+owner_phone_2 = os.environ.get("OWNER_PHONE_2")
+owner_phone_3 = os.environ.get("OWNER_PHONE_3")
+owner_phone_4 = os.environ.get("OWNER_PHONE_4")
 
 app = Flask(__name__)
 
@@ -153,7 +151,7 @@ def message_handler(data, phone_id):
             if user is None:
                 response_message = "Great! What's your name?"
             else:
-                response_message = "Successfully added to cart. Would you like to add anything else?"
+                response_message = "What would you like to order?"
             send(response_message, sender, phone_id)
         elif prompt in ["no", "not now"]:
             response_message = "Alright! Let me know if you change your mind."
