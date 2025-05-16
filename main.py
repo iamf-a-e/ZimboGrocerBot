@@ -147,16 +147,19 @@ def message_handler(data, phone_id):
             if user is not None:
                 response_message = f"Hi {user.payer_name}! Welcome back! Would you like to place an order? (yes/no)"
             else:
-                response_message = "Hello! Welcome to our service. What's your name?"
+                response_message = "Hello! Welcome to Zimbogrocer online service. What's your name?"
             send(response_message, sender, phone_id)
         elif prompt == "yes":
             if user is None:
                 response_message = "Great! What's your name?"
             else:
-                response_message = "Great! Let's continue with your order."
+                response_message = "Successfully added to cart. Would you like to add anything else?"
+            send(response_message, sender, phone_id)
+        elif prompt in ["yes", "yeah"]:
+            response_message = "Alright! Let me know if you change your mind."
             send(response_message, sender, phone_id)
         elif prompt in ["no", "not now"]:
-            response_message = "Alright! Let me know if you change your mind."
+            response_message = "Available categories:\n{category_list}."
             send(response_message, sender, phone_id)
         elif user is None and prompt:
             # Assume the prompt is the user's name
