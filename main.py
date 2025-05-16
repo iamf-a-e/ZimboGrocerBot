@@ -6,12 +6,11 @@ from flask import Flask, request, jsonify, render_template
 from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from training import instructions
-import google.generativeai as genai
+
 
 # Logging configuration
 logging.basicConfig(level=logging.INFO)
-genai.configure(api_key=gen_api)
+
 
 # Environment variables
 wa_token = os.environ.get("WA_TOKEN")  # WhatsApp API Key
@@ -22,9 +21,6 @@ owner_phone_3 = os.environ.get("OWNER_PHONE_3")
 owner_phone_4 = os.environ.get("OWNER_PHONE_4")
 
 app = Flask(__name__)
-
-
-convo.send_message(instructions.instructions)
 
 
 # User state management
