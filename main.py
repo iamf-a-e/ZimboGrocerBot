@@ -6,6 +6,7 @@ from flask import Flask, request, jsonify, render_template
 from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from training import instructions
 
 # Logging configuration
 logging.basicConfig(level=logging.INFO)
