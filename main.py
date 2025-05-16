@@ -200,14 +200,24 @@ def message_handler(data, phone_id):
                 
                 # Generate cart contents
                 cart_contents = "\n".join([f"{item.name} - R{item.price}" for item in user.get_cart_contents()])
-                response_message = f"{user_states[sender]['selected_product'].name} has been added to your cart!\nCurrent cart:\n{cart_contents}"
+                response_message = f"{user_states[sender]['selected_product'].name} has been added to your cart!\nCurrent cart:\n{cart_contents}\nWould you like to add anything else to your cart? (yes/no)"
                 
                 # Clear selections after adding to cart
                 user_states[sender].pop("selected_product", None)
                 user_states[sender].pop("selected_category", None)
             else:
-                response_message = "No problem! Let me know if you need anything else."
+                response_message = "Would you like to check out? (yes/no)"
                 user_states[sender].pop("selected_product", None)  # Clear selection
+            send(response_message, sender, phone_id)
+        elif prompt == "yes" and "add_anything_else" in user_states[sender]:
+            categories = order_system.list_categories()
+            category_list = "\n".join([f"{chr(65 + idx)}. {category}" for idx, category in enumerate(categories)])
+            response_message = f"Available categories:\n{category_list}"
+            send(response_message, sender, phone_id)
+            user_states[sender].pop("add_anything_else", None)  # Clear the flag
+        elif prompt == "no" and "add_anything_else" in user_states[sender]:
+            response_message = "Would you like to check out? (yes/no)"
+            user_states[sender].pop("add_anything_else", None)  # Clear the flag
             send(response_message, sender, phone_id)
     else:
         send("This format is not supported by the bot ☹", sender, phone_id)
