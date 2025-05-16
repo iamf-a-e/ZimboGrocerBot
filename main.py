@@ -7,9 +7,11 @@ from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from training import instructions
+import google.generativeai as genai
 
 # Logging configuration
 logging.basicConfig(level=logging.INFO)
+genai.configure(api_key=gen_api)
 
 # Environment variables
 wa_token = os.environ.get("WA_TOKEN")  # WhatsApp API Key
