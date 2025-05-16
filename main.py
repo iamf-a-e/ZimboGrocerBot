@@ -28,7 +28,7 @@ user_states = {}
 # Database setup
 db = False
 if db:
-    db_url = os.environ.get("mysql+pymysql://root:@localhost:3306/mydatabase")  # Database URL
+    db_url = os.environ.get("DB_URL")  # Database URL
     engine = create_engine(db_url)
     Session = sessionmaker(bind=engine)
     Base = declarative_base()
@@ -155,11 +155,8 @@ def message_handler(data, phone_id):
             else:
                 response_message = "Successfully added to cart. Would you like to add anything else?"
             send(response_message, sender, phone_id)
-        elif prompt in ["yes", "yeah"]:
-            response_message = "Alright! Let me know if you change your mind."
-            send(response_message, sender, phone_id)
         elif prompt in ["no", "not now"]:
-            response_message = "Available categories:\n{category_list}."
+            response_message = "Alright! Let me know if you change your mind."
             send(response_message, sender, phone_id)
         elif user is None and prompt:
             # Assume the prompt is the user's name
