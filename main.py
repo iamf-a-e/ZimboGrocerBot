@@ -150,9 +150,6 @@ def message_handler(data, phone_id):
         elif prompt == "yes":
             if user is None:
                 response_message = "Great! What's your name?"
-            else:
-                response_message = "What would you like to order?"
-            send(response_message, sender, phone_id)
         elif prompt in ["no", "not now"]:
             response_message = "Alright! Let me know if you change your mind."
             send(response_message, sender, phone_id)
