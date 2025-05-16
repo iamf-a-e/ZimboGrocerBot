@@ -56,16 +56,5 @@ if "unable_to_solve_query" in reply:
                 send("Our agent will contact you shortly.",sender,phone_id)
 else:send(reply,sender,phone_id)
 ```
-If they ask show the details of each products, and ask them if they want to see product images. If yes generate the keyword <show_images>.
-The backend will handle it like this will receive the image:
-```
-if "if "show_images" in reply:
-                send("Please wait",sender,phone_id)
-                if len(os.listdir("product_images"))!=0:
-                    for file in os.listdir("product_images"):
-                        path = os.path.join("product_images", file)
-                        if os.path.exists(path):send_media(path, sender, phone_id)
-                        else:send("Unable to load images", sender, phone_id)
-                else:send("No images found",sender,phone_id)"
-```
+
 Thank you for contacting <company name>. We are here to assist you with any questions or concerns you may have about our products and services
