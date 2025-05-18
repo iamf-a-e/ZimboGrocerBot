@@ -7,29 +7,26 @@ from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-
 # Logging configuration
 logging.basicConfig(level=logging.INFO)
 
-
 # Environment variables
-wa_token = os.environ.get("WA_TOKEN")  # WhatsApp API Key
-gen_api = os.environ.get("GEN_API")  # Gemini API Key
-owner_phone_1 = os.environ.get("OWNER_PHONE_1")  # Owner's phone number with country code
+wa_token = os.environ.get("WA_TOKEN")
+gen_api = os.environ.get("GEN_API")
+owner_phone_1 = os.environ.get("OWNER_PHONE_1")
 owner_phone_2 = os.environ.get("OWNER_PHONE_2")
 owner_phone_3 = os.environ.get("OWNER_PHONE_3")
 owner_phone_4 = os.environ.get("OWNER_PHONE_4")
 
 app = Flask(__name__)
 
-
 # User state management
 user_states = {}
 
-# Database setup
+# Database setup (disabled by default)
 db = False
 if db:
-    db_url = os.environ.get("DB_URL")  # Database URL
+    db_url = os.environ.get("DB_URL")
     engine = create_engine(db_url)
     Session = sessionmaker(bind=engine)
     Base = declarative_base()
@@ -48,7 +45,7 @@ class User:
     def __init__(self, payer_name, payer_phone):
         self.payer_name = payer_name
         self.payer_phone = payer_phone
-        self.cart = []  # Initialize the cart
+        self.cart = []
 
     def add_to_cart(self, product):
         self.cart.append(product)
@@ -133,11 +130,10 @@ def webhook():
         return jsonify({"status": "ok"}), 200
 
 def message_handler(data, phone_id):
-    sender = data["from"]  # This is the phone number of the sender
+    sender = data["from"]
     if data["type"] == "text":
-        prompt = data["text"]["body"].lower()  # Convert to lowercase for easier matching
-        
-        # Initialize user state if not present
+        prompt = data["text"]["body"].lower()
+
         if sender not in user_states:
             user_states[sender] = {"order_system": OrderSystem(), "user": None}
 
@@ -150,80 +146,90 @@ def message_handler(data, phone_id):
             else:
                 response_message = "Hello! Welcome to Zimbogrocer online service. What's your name?"
             send(response_message, sender, phone_id)
+
         elif prompt == "yes":
             if user is None:
                 response_message = "Great! What's your name?"
             else:
-                response_message = "What would you like to order?"
+                categories = order_system.list_categories()
+                category_list = "\n".join([f"{chr(65 + idx)}. {category}" for idx, category in enumerate(categories)])
+                response_message = f"Available categories:\n{category_list}"
             send(response_message, sender, phone_id)
+
         elif prompt in ["no", "not now"]:
             response_message = "Alright! Let me know if you change your mind."
             send(response_message, sender, phone_id)
+
         elif user is None and prompt:
-            # Assume the prompt is the user's name
-            payer_name = prompt.title()  # Format name correctly
-            payer_phone = sender  # Use the sender's phone number
+            payer_name = prompt.title()
+            payer_phone = sender
             user = User(payer_name, payer_phone)
             user_states[sender]["user"] = user
 
             categories = order_system.list_categories()
-            # Number the categories as letters for user display
             category_list = "\n".join([f"{chr(65 + idx)}. {category}" for idx, category in enumerate(categories)])
             response_message = f"Thank you, {payer_name}! Available categories:\n{category_list}"
             send(response_message, sender, phone_id)
+
         elif user is not None and prompt.isalpha() and len(prompt) == 1:
-            category_index = ord(prompt.upper()) - 65  # Convert letter to index
+            category_index = ord(prompt.upper()) - 65
             categories = order_system.list_categories()
             if 0 <= category_index < len(categories):
                 selected_category = categories[category_index]
                 products = order_system.list_products(selected_category)
-                # List products with numbers
                 product_list = "\n".join([f"{idx + 1}. {product.name} - R{product.price}: {product.description}" for idx, product in enumerate(products)])
                 response_message = f"Products in {selected_category}:\n{product_list}\nPlease select a product by number."
-                user_states[sender]["selected_category"] = selected_category  # Store selected category
-                user_states[sender].pop("selected_product", None)  # Clear previously selected product
+                user_states[sender]["selected_category"] = selected_category
+                user_states[sender].pop("selected_product", None)
             else:
                 response_message = "Invalid category selection. Please choose a letter from the list."
             send(response_message, sender, phone_id)
+
         elif user is not None and prompt.isdigit() and "selected_category" in user_states[sender]:
             product_index = int(prompt) - 1
             selected_category = user_states[sender]["selected_category"]
             products = order_system.list_products(selected_category)
             if 0 <= product_index < len(products):
                 selected_product = products[product_index]
-                user_states[sender]["selected_product"] = selected_product  # Store selected product
+                user_states[sender]["selected_product"] = selected_product
                 response_message = f"You selected: {selected_product.name} - R{selected_product.price}. Would you like to add it to your cart? (yes/no)"
             else:
                 response_message = "Invalid product selection. Please choose a number from the list."
             send(response_message, sender, phone_id)
+
         elif prompt in ["yes", "no"] and "selected_product" in user_states[sender]:
             if prompt == "yes":
-                # Add the product to the user's cart
-                user.add_to_cart(user_states[sender]['selected_product'])
-                # Debugging line
-                print(f"Cart contents for {sender}: {[item.name for item in user.get_cart_contents()]}")
-                
-                # Generate cart contents
+                selected_product = user_states[sender]["selected_product"]
+                user.add_to_cart(selected_product)
+
                 cart_contents = "\n".join([f"{item.name} - R{item.price}" for item in user.get_cart_contents()])
-                response_message = f"{user_states[sender]['selected_product'].name} has been successfully added to your cart!\nCurrent cart:\n{cart_contents}\nWould you like to add anything else to your cart? (yes/no)"
-                
-                # Clear selections after adding to cart
+                response_message = (
+                    f"{selected_product.name} has been successfully added to your cart!\n\n"
+                    f"🛒 Current Cart:\n{cart_contents}\n\n"
+                    f"Would you like to add anything else to your cart? (yes/no)"
+                )
+
                 user_states[sender].pop("selected_product", None)
                 user_states[sender].pop("selected_category", None)
+                user_states[sender]["add_anything_else"] = True
             else:
                 response_message = "Would you like to check out? (yes/no)"
-                user_states[sender].pop("selected_product", None)  # Clear selection
+                user_states[sender].pop("selected_product", None)
+
             send(response_message, sender, phone_id)
+
         elif prompt == "yes" and "add_anything_else" in user_states[sender]:
             categories = order_system.list_categories()
             category_list = "\n".join([f"{chr(65 + idx)}. {category}" for idx, category in enumerate(categories)])
             response_message = f"Available categories:\n{category_list}"
             send(response_message, sender, phone_id)
-            user_states[sender].pop("add_anything_else", None)  # Clear the flag
+            user_states[sender].pop("add_anything_else", None)
+
         elif prompt == "no" and "add_anything_else" in user_states[sender]:
             response_message = "Would you like to check out? (yes/no)"
-            user_states[sender].pop("add_anything_else", None)  # Clear the flag
+            user_states[sender].pop("add_anything_else", None)
             send(response_message, sender, phone_id)
+
     else:
         send("This format is not supported by the bot ☹", sender, phone_id)
 
