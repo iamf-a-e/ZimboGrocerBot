@@ -200,6 +200,8 @@ def message_handler(data, phone_id):
             if prompt == "yes":
                 # Add the product to the user's cart
                 user.add_to_cart(user_states[sender]['selected_product'])
+                # Debugging line
+                print(f"Cart contents for {sender}: {[item.name for item in user.get_cart_contents()]}")
                 
                 # Generate cart contents
                 cart_contents = "\n".join([f"{item.name} - R{item.price}" for item in user.get_cart_contents()])
