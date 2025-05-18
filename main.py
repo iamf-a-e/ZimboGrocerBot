@@ -7,10 +7,8 @@ from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# Logging configuration
 logging.basicConfig(level=logging.INFO)
 
-# Environment variables
 wa_token = os.environ.get("WA_TOKEN")
 gen_api = os.environ.get("GEN_API")
 owner_phone_1 = os.environ.get("OWNER_PHONE_1")
@@ -22,7 +20,6 @@ app = Flask(__name__)
 
 user_states = {}
 
-# Database setup (disabled)
 db = False
 if db:
     db_url = os.environ.get("DB_URL")
@@ -46,20 +43,16 @@ class User:
         self.cart = []
 
     def add_to_cart(self, product, quantity):
-        for i, (item, qty) in enumerate(self.cart):
-            if item.name == product.name:
-                self.cart[i] = (item, qty + quantity)
-                return
         self.cart.append((product, quantity))
+
+    def remove_from_cart(self, product_name):
+        self.cart = [item for item in self.cart if item[0].name.lower() != product_name.lower()]
+
+    def clear_cart(self):
+        self.cart = []
 
     def get_cart_contents(self):
         return self.cart
-
-    def remove_item(self, product_name):
-        self.cart = [(item, qty) for item, qty in self.cart if item.name.lower() != product_name.lower()]
-
-    def clear_cart(self):
-        self.cart.clear()
 
 class Product:
     def __init__(self, name, price, description):
@@ -109,7 +102,9 @@ def send(answer, sender, phone_id):
         "messaging_product": "whatsapp",
         "to": sender,
         "type": "text",
-        "text": {"body": answer}
+        "text": {
+            "body": answer
+        }
     }
     response = requests.post(url, headers=headers, json=data)
     return response
@@ -126,8 +121,8 @@ def webhook():
         challenge = request.args.get("hub.challenge")
         if mode == "subscribe" and token == "BOT":
             return challenge, 200
-        return "Failed", 403
-
+        else:
+            return "Failed", 403
     elif request.method == "POST":
         data = request.get_json()["entry"][0]["changes"][0]["value"]["messages"][0]
         phone_id = request.get_json()["entry"][0]["changes"][0]["value"]["metadata"]["phone_number_id"]
@@ -136,98 +131,92 @@ def webhook():
 
 def message_handler(data, phone_id):
     sender = data["from"]
-    if data["type"] != "text":
-        send("This format is not supported by the bot \u2639", sender, phone_id)
-        return
+    if data["type"] == "text":
+        prompt = data["text"]["body"].lower()
 
-    prompt = data["text"]["body"].strip().lower()
-    user_state = user_states.setdefault(sender, {"order_system": OrderSystem(), "user": None})
-    order_system = user_state["order_system"]
-    user = user_state["user"]
+        if sender not in user_states:
+            user_states[sender] = {"order_system": OrderSystem(), "user": None}
 
-    if prompt in ["hi", "hello", "hey"]:
-        if user:
-            send(f"Hi {user.payer_name}, welcome back! Would you like to place an order? (yes/no)", sender, phone_id)
-        else:
-            send("Hello! Welcome to Zimbogrocer online service. What's your name?", sender, phone_id)
+        order_system = user_states[sender]["order_system"]
+        user = user_states[sender]["user"]
 
-    elif user is None:
-        payer_name = prompt.title()
-        payer_phone = sender
-        user = User(payer_name, payer_phone)
-        user_state["user"] = user
-        categories = order_system.list_categories()
-        cat_list = "\n".join([f"{chr(65+i)}. {cat}" for i, cat in enumerate(categories)])
-        send(f"Thanks {payer_name}! Available categories:\n{cat_list}", sender, phone_id)
-
-    elif prompt in ["yes", "sure"] and "selected_product" not in user_state:
-        categories = order_system.list_categories()
-        cat_list = "\n".join([f"{chr(65+i)}. {cat}" for i, cat in enumerate(categories)])
-        send(f"Available categories:\n{cat_list}", sender, phone_id)
-
-    elif prompt in ["no", "not now"]:
-        send("Alright! Let me know if you change your mind.", sender, phone_id)
-
-    elif prompt.isalpha() and len(prompt) == 1:
-        index = ord(prompt.upper()) - 65
-        categories = order_system.list_categories()
-        if 0 <= index < len(categories):
-            selected_category = categories[index]
-            user_state["selected_category"] = selected_category
-            products = order_system.list_products(selected_category)
-            prod_list = "\n".join([f"{i+1}. {p.name} - R{p.price}: {p.description}" for i, p in enumerate(products)])
-            send(f"Products in {selected_category}:\n{prod_list}\nChoose a product by number.", sender, phone_id)
-        else:
-            send("Invalid category letter.", sender, phone_id)
-
-    elif prompt.isdigit() and "selected_category" in user_state:
-        products = order_system.list_products(user_state["selected_category"])
-        index = int(prompt) - 1
-        if 0 <= index < len(products):
-            user_state["selected_product"] = products[index]
-            send(f"How many of {products[index].name} would you like to add to your cart?", sender, phone_id)
-        else:
-            send("Invalid product number.", sender, phone_id)
-
-    elif prompt.isdigit() and "selected_product" in user_state:
-        quantity = int(prompt)
-        if quantity <= 0:
-            send("Quantity must be a positive number.", sender, phone_id)
-            return
-        product = user_state["selected_product"]
-        user.add_to_cart(product, quantity)
-        user_state.pop("selected_product", None)
-        user_state.pop("selected_category", None)
-        cart_msg = "\n".join([f"{item.name} x{qty} - R{item.price*qty:.2f}" for item, qty in user.get_cart_contents()])
-        send(f"{product.name} x{quantity} added to your cart.\nCurrent cart:\n{cart_msg}\nWould you like to add more? (yes/no)", sender, phone_id)
-
-    elif prompt == "view cart":
-        if not user.cart:
-            send("Your cart is empty.", sender, phone_id)
-        else:
-            cart_msg = "\n".join([f"{item.name} x{qty} - R{item.price*qty:.2f}" for item, qty in user.get_cart_contents()])
-            send(f"Your cart:\n{cart_msg}", sender, phone_id)
-
-    elif prompt.startswith("remove "):
-        prod_name = prompt.replace("remove ", "").strip()
-        user.remove_item(prod_name)
-        send(f"{prod_name} removed from your cart.", sender, phone_id)
-
-    elif prompt == "clear cart":
-        user.clear_cart()
-        send("Your cart has been cleared.", sender, phone_id)
-
-    elif prompt == "checkout":
-        if not user.cart:
-            send("Your cart is empty. Add some items before checking out.", sender, phone_id)
-        else:
-            cart_msg = "\n".join([f"{item.name} x{qty} - R{item.price*qty:.2f}" for item, qty in user.get_cart_contents()])
-            total = sum(item.price * qty for item, qty in user.get_cart_contents())
-            send(f"Checkout summary:\n{cart_msg}\nTotal: R{total:.2f}\nThank you for shopping with Zimbogrocer!", sender, phone_id)
+        if prompt in ["hi", "hie", "hello", "hey"]:
+            if user is not None:
+                response_message = f"Hi {user.payer_name}! Welcome back! Here are our categories:"
+            else:
+                response_message = "Hello! Welcome to Zimbogrocer online service. What's your name?"
+            send(response_message, sender, phone_id)
+            if user is not None:
+                categories = order_system.list_categories()
+                category_list = "\n".join([f"{chr(65 + idx)}. {category}" for idx, category in enumerate(categories)])
+                send(f"Available categories:\n{category_list}", sender, phone_id)
+        elif prompt == "yes" and "awaiting_quantity" in user_states[sender]:
+            send("Please enter the quantity as a number.", sender, phone_id)
+        elif prompt == "yes":
+            if user is None:
+                response_message = "Great! What's your name?"
+                send(response_message, sender, phone_id)
+            else:
+                categories = order_system.list_categories()
+                category_list = "\n".join([f"{chr(65 + idx)}. {category}" for idx, category in enumerate(categories)])
+                send(f"Available categories:\n{category_list}", sender, phone_id)
+        elif prompt in ["no", "not now"]:
+            send("Alright! Let me know if you change your mind.", sender, phone_id)
+        elif user is None and prompt:
+            payer_name = prompt.title()
+            payer_phone = sender
+            user = User(payer_name, payer_phone)
+            user_states[sender]["user"] = user
+            categories = order_system.list_categories()
+            category_list = "\n".join([f"{chr(65 + idx)}. {category}" for idx, category in enumerate(categories)])
+            send(f"Thank you, {payer_name}! Available categories:\n{category_list}", sender, phone_id)
+        elif user is not None and prompt.isalpha() and len(prompt) == 1:
+            category_index = ord(prompt.upper()) - 65
+            categories = order_system.list_categories()
+            if 0 <= category_index < len(categories):
+                selected_category = categories[category_index]
+                products = order_system.list_products(selected_category)
+                product_list = "\n".join([f"{idx + 1}. {product.name} - R{product.price}: {product.description}" for idx, product in enumerate(products)])
+                send(f"Products in {selected_category}:\n{product_list}\nPlease select a product by number.", sender, phone_id)
+                user_states[sender]["selected_category"] = selected_category
+                user_states[sender].pop("selected_product", None)
+            else:
+                send("Invalid category selection. Please choose a letter from the list.", sender, phone_id)
+        elif user is not None and prompt.isdigit():
+            if "awaiting_quantity" in user_states[sender]:
+                quantity = int(prompt)
+                product = user_states[sender]["awaiting_quantity"]
+                user.add_to_cart(product, quantity)
+                cart_contents = "\n".join([f"{item[0].name} x{item[1]} - R{item[0].price * item[1]:.2f}" for item in user.get_cart_contents()])
+                send(f"{product.name} x{quantity} added to cart.\nCurrent cart:\n{cart_contents}\nWould you like to add anything else? (yes/no)", sender, phone_id)
+                user_states[sender].pop("awaiting_quantity")
+            elif "selected_category" in user_states[sender]:
+                product_index = int(prompt) - 1
+                selected_category = user_states[sender]["selected_category"]
+                products = order_system.list_products(selected_category)
+                if 0 <= product_index < len(products):
+                    selected_product = products[product_index]
+                    user_states[sender]["awaiting_quantity"] = selected_product
+                    send(f"You selected: {selected_product.name} - R{selected_product.price}.\nHow many would you like to add?", sender, phone_id)
+                else:
+                    send("Invalid product selection. Please choose a number from the list.", sender, phone_id)
+        elif prompt.startswith("remove "):
+            item_name = prompt.split("remove ")[1].strip()
+            user.remove_from_cart(item_name)
+            send(f"Removed {item_name} from your cart.", sender, phone_id)
+        elif prompt == "clear cart":
             user.clear_cart()
-
+            send("Your cart has been cleared.", sender, phone_id)
+        elif prompt == "view cart":
+            cart_contents = "\n".join([f"{item[0].name} x{item[1]} - R{item[0].price * item[1]:.2f}" for item in user.get_cart_contents()]) or "Your cart is empty."
+            send(f"Current cart:\n{cart_contents}", sender, phone_id)
+        elif prompt == "checkout":
+            cart_contents = "\n".join([f"{item[0].name} x{item[1]} - R{item[0].price * item[1]:.2f}" for item in user.get_cart_contents()])
+            total = sum(item[0].price * item[1] for item in user.get_cart_contents())
+            send(f"Your order:\n{cart_contents}\nTotal: R{total:.2f}\nThank you for shopping with us!", sender, phone_id)
+            user.clear_cart()
     else:
-        send("Sorry, I didn't understand that. Type 'view cart', 'checkout', 'remove <item>', or 'clear cart'.", sender, phone_id)
+        send("This format is not supported by the bot ☹", sender, phone_id)
 
 if __name__ == "__main__":
     app.run(debug=True, port=8000)
