@@ -356,6 +356,14 @@ def message_handler(data, phone_id):
     order_system = user_data["order_system"]
     user = user_data.get("user")
 
+    if step == "ask_name":
+    if sender not in user_states:
+        send("Hello! Welcome to Zimbogrocer. What's your name?", sender, phone_id)
+        user_data["step"] = "save_name"
+    else:
+        # If sender is already in user_states, do nothing or handle accordingly
+        user_data["step"] = "ask_name"
+
     def list_categories():
         return "\n".join([f"{chr(65+i)}. {cat}" for i, cat in enumerate(order_system.list_categories())])
 
