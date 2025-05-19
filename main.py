@@ -391,10 +391,6 @@ def message_handler(data, phone_id):
     if step == "ask_name":
         send("Hello! Welcome to Zimbogrocer. What's your name?", sender, phone_id)
         user_data["step"] = "save_name"
-    else:
-        # If sender is already in user_states, do nothing or handle accordingly
-        send("Welcome back to Zimbogrocer!.", sender, phone_id)
-        user_data["step"] = "ask_name"
 
     elif step == "save_name":
         user = User(prompt.title(), sender)
