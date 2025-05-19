@@ -427,7 +427,7 @@ def message_handler(data, phone_id):
             prod = user_data["selected_product"]
             user.add_to_cart(prod, qty)
             send(f"{prod.name} x{qty} added.\n{show_cart(user)}\nWould you like to checkout? (yes/no)", sender, phone_id)
-            user_data["step"] = "ask_checkout"
+            user_data["step"] = "get_area"
         except:
             send("Please enter a valid number for quantity.", sender, phone_id)
 
@@ -462,7 +462,7 @@ def message_handler(data, phone_id):
             user.checkout_data["delivery_area"] = area
             user.checkout_data["delivery_fee"] = delivery_areas[area]
             send("Enter the receiver’s full name.", sender, phone_id)
-            user_data["step"] = "get_receiver_name"
+            user_data["step"] = "ask_checkout"
         else:
             area_list = "\n".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()])
             send(f"Invalid area. Please choose from:\n{area_list}", sender, phone_id)
