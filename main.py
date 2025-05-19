@@ -444,7 +444,7 @@ def message_handler(data, phone_id):
         if prompt.lower() == "view cart":
             send(show_cart(user), sender, phone_id)  # Show the cart immediately
             send("Would you like to checkout? (yes/no)", sender, phone_id)  # Prompt for checkout
-            user_data["step"] = "ask_checkout"  # Set the next step to ask for checkout
+            user_data["step"] = "get_area"  # Set the next step to ask for checkout
         elif prompt.lower() == "clear cart":
             user.clear_cart()
             send("Cart cleared.", sender, phone_id)
@@ -489,7 +489,7 @@ def message_handler(data, phone_id):
             user.add_to_cart(delivery_product, 1)
             
             send("Enter the receiver’s full name.", sender, phone_id)
-            user_data["step"] = "checkout"
+            user_data["step"] = "ask_checkout
         else:
             area_list = "\n".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()])
             send(f"Invalid area. Please choose from:\n{area_list}", sender, phone_id)
