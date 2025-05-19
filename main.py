@@ -350,18 +350,9 @@ def message_handler(data, phone_id):
              f"Phone: {user.checkout_data['phone']}\n\n{payment_info}", sender, phone_id)
         user.clear_cart()
         user_data["step"] = "ask_another_order"
-    
-    elif step == "ask_another_order":
-        send("Would you like to place another order? (yes/no)", sender, phone_id)
-        if prompt.lower() in ["yes", "y"]:
-            send("Great! Here are the available categories:\n" + list_categories(), sender, phone_id)
-            user_data["step"] = "choose_category"
-        elif prompt.lower() in ["no", "n"]:
-            send("Thank you for your order! Have a great day! 😊", sender, phone_id)
-            user_data["step"] = None  # Reset or end session
-        else:
-            send("Please reply with 'yes' or 'no'.", sender, phone_id)
-    
+        send("Would you like to place another order? Select a category:\n" + list_categories(), sender, phone_id)
+
+ 
     else:
         send("Okay, let's correct the details. What's the receiver’s full name?", sender, phone_id)
         user_data["step"] = "get_receiver_name"
