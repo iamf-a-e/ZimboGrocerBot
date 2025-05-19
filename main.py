@@ -429,26 +429,7 @@ def message_handler(data, phone_id):
             user.add_to_cart(prod, qty)
             send("What would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Add Item", sender, phone_id)
             user_data["step"] = "post_add_menu"
-        if prompt.lower() == "view cart":
-            send(show_cart(user), sender, phone_id)
-            send("Would you like to checkout? (yes/no)", sender, phone_id)  # Prompt for checkout
-            user_data["step"] = "ask_checkout"
-        elif prompt.lower() == "clear cart":
-            user.clear_cart()
-            send("Cart cleared.", sender, phone_id)
-            send("Would you like to checkout? (yes/no)", sender, phone_id)  # Prompt for checkout
-            user_data["step"] = "ask_checkout"
-        elif prompt.lower().startswith("remove "):
-            item = prompt[7:].strip()
-            user.remove_from_cart(item)
-            send(f"{item} removed from cart.\n{show_cart(user)}", sender, phone_id)
-            send("Would you like to checkout? (yes/no)", sender, phone_id)  # Prompt for checkout
-            user_data["step"] = "ask_checkout"
-        elif prompt.lower() in ["add", "add item", "add another", "add more", "i'd like to add", "want to add item", "add an item"]:
-            send("Sure! Here are the available categories:\n" + list_categories(), sender, phone_id)
-            user_data["step"] = "choose_category"
-        else:
-            send("Sorry, I didn't understand. You can:\n- View Cart\n- Clear Cart\n- Remove <item>\n- Add Item", sender, phone_id)
+        
         except:
             send("Please enter a valid number for quantity.", sender, phone_id)
 
