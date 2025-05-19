@@ -429,7 +429,7 @@ def message_handler(data, phone_id):
             prod = user_data["selected_product"]
             user.add_to_cart(prod, qty)
             send("What would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Add Item", sender, phone_id)
-            user_data["step"] = "post_add_menu"
+            user_data["step"] = "get_area"
         
         except:
             send("Please enter a valid number for quantity.", sender, phone_id)
@@ -444,7 +444,7 @@ def message_handler(data, phone_id):
         if prompt.lower() == "view cart":
             send(show_cart(user), sender, phone_id)  # Show the cart immediately
             send("Would you like to checkout? (yes/no)", sender, phone_id)  # Prompt for checkout
-            user_data["step"] = "get_area"  # Set the next step to ask for checkout
+            user_data["step"] = "ask_checkout"  # Set the next step to ask for checkout
         elif prompt.lower() == "clear cart":
             user.clear_cart()
             send("Cart cleared.", sender, phone_id)
