@@ -399,29 +399,31 @@ def message_handler(data, phone_id):
         user_data["step"] = "choose_category"
 
     elif step == "choose_category":
-    idx = ord(prompt.upper()) - 65
-    categories = order_system.list_categories()
-    if 0 <= idx < len(categories):
-        cat = categories[idx]
-        user_data["selected_category"] = cat
-        send(f"Products in {cat}:\n{list_products(cat)}\nSelect a product by number.", sender, phone_id)
-        user_data["step"] = "choose_product"
-    else:
-        send("Invalid category. Try again:\n" + list_categories(), sender, phone_id)
-
-   elif step == "choose_product":
-    try:
-        index = int(prompt) - 1
-        cat = user_data["selected_category"]
-        products = order_system.list_products(cat)
-        if 0 <= index < len(products):
-            user_data["selected_product"] = products[index]
-            send(f"You selected {products[index].name}. How many would you like to add?", sender, phone_id)
-            user_data["step"] = "ask_quantity"
+        idx = ord(prompt.upper()) - 65
+        categories = order_system.list_categories()
+        if 0 <= idx < len(categories):
+            cat = categories[idx]
+            user_data["selected_category"] = cat
+            send(f"Products in {cat}:\n{list_products(cat)}\nSelect a product by number.", sender, phone_id)
+            user_data["step"] = "choose_product"
         else:
-            send("Invalid product number. Try again.", sender, phone_id)
-    except:
-        send("Please enter a valid number.", sender, phone_id)
+            send("Invalid category. Try again:\n" + list_categories(), sender, phone_id)
+
+
+    elif step == "choose_product":
+        try:
+            index = int(prompt) - 1
+            cat = user_data["selected_category"]
+            products = order_system.list_products(cat)
+            if 0 <= index < len(products):
+                user_data["selected_product"] = products[index]
+                send(f"You selected {products[index].name}. How many would you like to add?", sender, phone_id)
+                user_data["step"] = "ask_quantity"
+            else:
+                send("Invalid product number. Try again.", sender, phone_id)
+        except:
+            send("Please enter a valid number.", sender, phone_id)
+
 
     elif step == "ask_quantity":
         try:
