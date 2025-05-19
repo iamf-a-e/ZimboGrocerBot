@@ -323,6 +323,14 @@ def message_handler(data, phone_id):
             send("Okay, let's correct the details. What's the receiver’s full name?", sender, phone_id)
             user_data["step"] = "get_receiver_name"
 
+    elif step == "post_order_option":
+        if prompt.lower() in ["yes", "y"]:
+            send("Great! Please select a category:\n" + list_categories(), sender, phone_id)
+            user_data["step"] = "choose_category"
+        else:
+            send("Have a good day!", sender, phone_id)
+            user_data["step"] = "ask_name"
+
     else:
         send("Sorry, I didn't understand that. Please start again with 'Hi'", sender, phone_id)
 
