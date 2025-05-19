@@ -333,27 +333,29 @@ def message_handler(data, phone_id):
         send(confirm_message, sender, phone_id)
         user_data["step"] = "confirm_details"
 
-    elif step == "confirm_details":
-        if prompt.lower() in ["yes", "y"]:
-            order_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
-            payment_info = f"Please make payment using one of the following options:\n\n1. Bank Transfer\nBank: ZimBank\nAccount: 123456789\nReference: {order_id}\n\n2. Pay at supermarkets: Shoprite, Checkers, Usave, Game, Spar, or Pick n Pay\n\n3. Pay via Mukuru\n\n4. Send via WorldRemit or Western Union\n\nInclude your Order ID as reference: {order_id}"
-            send(f"Order placed! 🛒\nOrder ID: {order_id}\n\n{show_cart(user)}\n\nReceiver: {user.checkout_data['receiver_name']}\nAddress: {user.checkout_data['address']}\nPhone: {user.checkout_data['phone']}\n\n{payment_info}", sender, phone_id)
-            user.clear_cart()
-            user_data["step"] = "ask_place_another_order"
-            send("Would you like to place another order? (yes/no)", sender, phone_id)
-        else:
-            send("Okay, let's correct the details. What's the receiver’s full name?", sender, phone_id)
-            user_data["step"] = "get_receiver_name"
+   elif step == "confirm_details":
+    if prompt.lower() in ["yes", "y"]:
+        order_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+        payment_info = f"Please make payment using one of the following options:\n\n1. Bank Transfer\nBank: ZimBank\nAccount: 123456789\nReference: {order_id}\n\n2. Pay at supermarkets: Shoprite, Checkers, Usave, Game, Spar, or Pick n Pay\n\n3. Pay via Mukuru\n\n4. Send via WorldRemit or Western Union\n\nInclude your Order ID as reference: {order_id}"
+        send(f"Order placed! 🛒\nOrder ID: {order_id}\n\n{show_cart(user)}\n\nReceiver: {user.checkout_data['receiver_name']}\nAddress: {user.checkout_data['address']}\nPhone: {user.checkout_data['phone']}\n\n{payment_info}", sender, phone_id)
+        user.clear_cart()
+        user_data["step"] = "ask_place_another_order"
+        send("Would you like to place another order? (yes/no)", sender, phone_id)
+    else:
+        send("Okay, let's correct the details. What's the receiver’s full name?", sender, phone_id)
+        user_data["step"] = "get_receiver_name"
 
-        else:
-        send("Sorry, I didn't understand that. Please start again with 'Hi'", sender, phone_id)
+  elif step == "ask_place_another_order":
+    if prompt.lower() in ["yes", "y"]:
+        send("Great! Please select a category:\n" + list_categories(), sender, phone_id)
+        user_data["step"] = "choose_category"
+    else:
+        send("Okay. Have a good day! 😊", sender, phone_id)
+        user_data["step"] = "ask_name"
 
-    elif step == "ask_place_another_order":
-        if prompt.lower() in ["yes", "y"]:
-            send("Great! Please select a category:\n" + list_categories(), sender, phone_id)
-            user_data["step"] = "choose_category"
-        else:
-            send("Okay. Have a good day! 😊", sender, phone_id)
+
+    else:
+       send("Sorry, I didn't understand that. Please start again with 'Hi'", sender, phone_id)
            
 
 if __name__ == "__main__":
