@@ -461,7 +461,14 @@ def message_handler(data, phone_id):
         area = prompt.strip()
         if area in delivery_areas:
             user.checkout_data["delivery_area"] = area
-            user.checkout_data["delivery_fee"] = delivery_areas[area]
+            fee = delivery_areas[area]
+            user.checkout_data["delivery_fee"] = fee
+
+            # Add delivery fee to cart as a line item (optional visual)
+            user.cart = [item for item in user.cart if item[0].name != "__Delivery__"]
+            delivery_product = Product("__Delivery__", fee, f"Delivery to {area}")
+            user.add_to_cart(delivery_product, 1)
+            
             send("Enter the receiver’s full name.", sender, phone_id)
             user_data["step"] = "ask_checkout"
         else:
