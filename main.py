@@ -294,9 +294,11 @@ def message_handler(data, phone_id):
             item = prompt[7:].strip()
             user.remove_from_cart(item)
             send(f"{item} removed from cart.\n{show_cart(user)}", sender, phone_id)
-        else:
-            send("Let's continue. Choose a category:\n" + list_categories(), sender, phone_id)
+        elif prompt.lower() in ["add", "add item", "add another", "add more", "i'd like to add", "want to add item", "add an item"]:
+            send("Sure! Here are the available categories:\n" + list_categories(), sender, phone_id)
             user_data["step"] = "choose_category"
+        else:
+            send("Sorry, I didn't understand. You can:\n- View Cart\n- Clear Cart\n- Remove <item>\n- Add Item", sender, phone_id)
 
     elif step == "get_area":
         area = prompt.strip()
