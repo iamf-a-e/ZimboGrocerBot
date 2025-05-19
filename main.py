@@ -341,14 +341,7 @@ def message_handler(data, phone_id):
             user.clear_cart()
             user_data["step"] = "choose_category"
             send("Would you like to place another order? (yes/no)", sender, phone_id)
-            user_data["step"] = "ask_another_order"
-        else:
-            send("Okay, let's correct the details. What's the receiver’s full name?", sender, phone_id)
-            user_data["step"] = "get_receiver_name"
-
-  
-    elif step == "ask_another_order":
-    if prompt.lower() in ["yes", "y"]:
+        if prompt.lower() in ["yes", "y"]:
         send("Great! Here are the available categories:\n" + list_categories(), sender, phone_id)
         user_data["step"] = "choose_category"
     elif prompt.lower() in ["no", "n"]:
@@ -356,8 +349,11 @@ def message_handler(data, phone_id):
         user_data["step"] = None  # Reset or end session
     else:
         send("Please reply with 'yes' or 'no'.", sender, phone_id)
+        else:
+            send("Okay, let's correct the details. What's the receiver’s full name?", sender, phone_id)
+            user_data["step"] = "get_receiver_name"
 
-
+  
     elif step == "post_order_option":
         if prompt.lower() in ["yes", "y"]:
             send("Great! Please select a category:\n" + list_categories(), sender, phone_id)
