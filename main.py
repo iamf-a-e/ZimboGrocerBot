@@ -281,7 +281,7 @@ def message_handler(data, phone_id):
             send(f"Please enter the delivery area from the list below:\n{area_list}", sender, phone_id)
             user_data["step"] = "get_area"
         else:
-            send("What would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Select another category", sender, phone_id)
+            send("What would you like to do next?\n- View Cart\n- Clear Cart\n- Remove <item>\n- Add Item", sender, phone_id)
             user_data["step"] = "post_add_menu"
 
     elif step == "post_add_menu":
