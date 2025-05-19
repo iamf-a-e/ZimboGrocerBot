@@ -222,6 +222,14 @@ def message_handler(data, phone_id):
         total = sum(p.price*q for p, q in cart)
         return "\n".join(lines) + f"\n\nTotal: R{total:.2f}"
 
+    delivery_areas = {
+        "Harare Main": 240,
+        "Chitungwiza": 300,
+        "Mabvuku": 300,
+        "Domboshava": 250,
+        "Marondera": 300
+    }
+
     if step == "ask_name":
         send("Hello! Welcome to Zimbogrocer. What's your name?", sender, phone_id)
         user_data["step"] = "save_name"
@@ -269,8 +277,9 @@ def message_handler(data, phone_id):
 
     elif step == "ask_checkout":
         if prompt.lower() in ["yes", "y"]:
-            send("Please enter the receiver’s full name.", sender, phone_id)
-            user_data["step"] = "get_receiver_name"
+            area_list = "\n".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()])
+            send(f"Please enter the delivery area from the list below:\n{area_list}", sender, phone_id)
+            user_data["step"] = "get_area"
         else:
             send("What would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Select another category", sender, phone_id)
             user_data["step"] = "post_add_menu"
@@ -289,6 +298,17 @@ def message_handler(data, phone_id):
             send("Let's continue. Choose a category:\n" + list_categories(), sender, phone_id)
             user_data["step"] = "choose_category"
 
+    elif step == "get_area":
+        area = prompt.strip()
+        if area in delivery_areas:
+            user.checkout_data["delivery_area"] = area
+            user.checkout_data["delivery_fee"] = delivery_areas[area]
+            send("Enter the receiver’s full name.", sender, phone_id)
+            user_data["step"] = "get_receiver_name"
+        else:
+            area_list = "\n".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()])
+            send(f"Invalid area. Please choose from:\n{area_list}", sender, phone_id)
+    
     elif step == "get_receiver_name":
         user.checkout_data["receiver_name"] = prompt
         send("Enter the delivery address.", sender, phone_id)
@@ -307,7 +327,7 @@ def message_handler(data, phone_id):
     elif step == "get_phone":
         user.checkout_data["phone"] = prompt
         details = user.checkout_data
-        confirm_message = f"Please confirm the details below:\n\nName: {details['receiver_name']}\nAddress: {details['address']}\nID: {details['id_number']}\nPhone: {details['phone']}\n\nAre these details correct? (yes/no)"
+        confirm_message = f"Please confirm the details below:\n\nName: {details['receiver_name']}\nAddress: {details['address']}\nID: {details['id_number']}\nPhone: {details['phone']}\nArea: {details['delivery_area']}\nDelivery Fee: R{details['delivery_fee']:.2f}\n\nAre these details correct? (yes/no)"
         send(confirm_message, sender, phone_id)
         user_data["step"] = "confirm_details"
 
