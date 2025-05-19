@@ -11,9 +11,9 @@ from sqlalchemy.orm import sessionmaker
 
 logging.basicConfig(level=logging.INFO)
 
-wa_token = os.environ.get("WA_TOKEN")
-gen_api = os.environ.get("GEN_API")
-owner_phone = os.environ.get("OWNER_PHONE")
+wa_token = os.environ.get("WA_TOKEN") # WhatsApp API Key
+gen_api = os.environ.get("GEN_API")  # Gemini API Key
+owner_phone = os.environ.get("OWNER_PHONE") # Owner's phone number with country code
 owner_phone_1 = os.environ.get("OWNER_PHONE_1")
 owner_phone_1 = os.environ.get("OWNER_PHONE_2")
 owner_phone_1 = os.environ.get("OWNER_PHONE_3")
