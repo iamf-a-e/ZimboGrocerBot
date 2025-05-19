@@ -89,7 +89,6 @@ class OrderSystem:
         pantry.add_product(Product("Mahatma Rice 2kg", 52.99, "Rice"))
         pantry.add_product(Product("Peanut Butter 350ml", 19.99, "Peanut butter"))
         pantry.add_product(Product("Roller Meal 10kg- Zim Meal", 136.99, "Maize meal"))
-        
         self.add_category(pantry)
         
         # Beverages
@@ -99,7 +98,6 @@ class OrderSystem:
         beverages.add_product(Product("Sprite 2 Litres", 37.99, "Soft drink"))
         beverages.add_product(Product("Nestle Gold Cross Condensed Milk 385g", 29.99, "Condensed milk"))
         beverages.add_product(Product("Dendairy Long Life Full Cream Milk 1 Litre", 28.99, "Long life milk"))
-        
         self.add_category(beverages)
         
         # Household
@@ -108,7 +106,6 @@ class OrderSystem:
         household.add_product(Product("Domestos Thick Bleach 750ml", 39.99, "Bleach cleaner"))
         household.add_product(Product("Handy Andy Assorted 500ml", 32.99, "Multi-surface cleaner"))
         household.add_product(Product("Maq Dishwashing Liquid 750ml", 35.99, "Dishwashing liquid"))
-        
         self.add_category(household)
         
         # Personal Care
@@ -117,7 +114,6 @@ class OrderSystem:
         personal_care.add_product(Product("Nivea Men's Roll On Assorted 50ml", 33.99, "Deodorant"))
         personal_care.add_product(Product("Clere Lanolin Lotion 400ml", 35.99, "Body lotion"))
         personal_care.add_product(Product("Vaseline Petroleum Jelly Original 250ml", 39.99, "Petroleum jelly"))
-        
         self.add_category(personal_care)
         
         # Snacks and Sweets
@@ -126,7 +122,6 @@ class OrderSystem:
         snacks.add_product(Product("Tiggies/Zim Naks Assorted 50s", 74.99, "Snacks"))
         snacks.add_product(Product("Pringles Original 110g", 22.90, "Potato chips"))
         snacks.add_product(Product("Willards Cheezies 150g", 14.99, "Cheese snacks"))
-        
         self.add_category(snacks)
         
         # Fresh Groceries
@@ -135,7 +130,6 @@ class OrderSystem:
         fresh.add_product(Product("Irvine's Mixed Chicken Cuts 2kg", 179.99, "Mixed chicken cuts"))
         fresh.add_product(Product("Potatoes 7.5kg", 219.99, "Fresh potatoes"))
         fresh.add_product(Product("Dairibord/Kefalos Yoghurt 150ml", 15.99, "Yoghurt"))
-        
         self.add_category(fresh)
         
         # Stationery
@@ -144,7 +138,6 @@ class OrderSystem:
         stationery.add_product(Product("A4 Bond Paper White", 126.99, "Bond paper"))
         stationery.add_product(Product("Cellotape Large 40yard", 5.99, "Cellotape"))
         stationery.add_product(Product("Sharp Scientific Calculator", 319.99, "Calculator"))
-        
         self.add_category(stationery)
         
         # Baby Section
@@ -152,7 +145,6 @@ class OrderSystem:
         baby_section.add_product(Product("Huggies Dry Comfort Jumbo Size 5 (44s)", 299.99, "Diapers"))
         baby_section.add_product(Product("Predo Baby Wipes Assorted 120s", 52.90, "Baby wipes"))
         baby_section.add_product(Product("Johnson and Johnson Scented Baby Jelly 325ml", 52.99, "Baby jelly"))
-        
         self.add_category(baby_section)
         
         # Snacks and Sweets
@@ -161,8 +153,7 @@ class OrderSystem:
         snacks.add_product(Product("Tiggies/Zim Naks Assorted 50s", 74.99, "Snacks"))
         snacks.add_product(Product("Pringles Original 110g", 22.90, "Potato chips"))
         snacks.add_product(Product("Willards Cheezies 150g", 14.99, "Cheese snacks"))
-
-self.add_category(snacks)
+        self.add_category(snacks)
 
     def add_category(self, category):
         self.categories[category.name] = category
