@@ -345,7 +345,7 @@ def message_handler(data, phone_id):
             send("Okay, let's correct the details. What's the receiver’s full name?", sender, phone_id)
             user_data["step"] = "get_receiver_name"
 
-    else:
+        else:
         send("Sorry, I didn't understand that. Please start again with 'Hi'", sender, phone_id)
 
     elif step == "ask_place_another_order":
