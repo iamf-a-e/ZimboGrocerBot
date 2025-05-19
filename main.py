@@ -453,7 +453,7 @@ def message_handler(data, phone_id):
             user.remove_from_cart(item)
             send(f"{item} removed from cart.\n{show_cart(user)}", sender, phone_id)
             send("Would you like to checkout? (yes/no)", sender, phone_id)  # Prompt for checkout
-            user_data["step"] = "get_area"
+            user_data["step"] = "ask_checkout"
         elif prompt.lower() in ["add", "add item", "add another", "add more", "i'd like to add", "want to add item", "add an item"]:
             send("Sure! Here are the available categories:\n" + list_categories(), sender, phone_id)
             user_data["step"] = "choose_category"
