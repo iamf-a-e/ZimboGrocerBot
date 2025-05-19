@@ -461,10 +461,17 @@ def message_handler(data, phone_id):
             send("Sorry, I didn't understand. You can:\n- View Cart\n- Clear Cart\n- Remove <item>\n- Add Item", sender, phone_id)
 
 
-    elif step == "checkout":
+    elif step == "ask_checkout":
         if prompt.lower() in ["yes", "y"]:
-            send("Please enter the receiver’s full name.", sender, phone_id)
-            user_data["step"] = "get_receiver_name"
+            send("Please enter your delivery area.\n" +
+                 "\n".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()]), sender, phone_id)
+            user_data["step"] = "get_area"
+        elif prompt.lower() in ["no", "n"]:
+            send("What would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Add Item", sender, phone_id)
+            user_data["step"] = "post_add_menu"
+        else:
+            send("Please respond with 'yes' or 'no'.", sender, phone_id)
+
         
     
     elif step == "get_area":
