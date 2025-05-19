@@ -443,13 +443,16 @@ def message_handler(data, phone_id):
     elif step == "post_add_menu":
         if prompt.lower() == "view cart":
             send(show_cart(user), sender, phone_id)
+            user_data["step"] = "checkout"
         elif prompt.lower() == "clear cart":
             user.clear_cart()
             send("Cart cleared.", sender, phone_id)
+            user_data["step"] = "checkout"
         elif prompt.lower().startswith("remove "):
             item = prompt[7:].strip()
             user.remove_from_cart(item)
             send(f"{item} removed from cart.\n{show_cart(user)}", sender, phone_id)
+            user_data["step"] = "checkout"
         elif prompt.lower() in ["add", "add item", "add another", "add more", "i'd like to add", "want to add item", "add an item"]:
             send("Sure! Here are the available categories:\n" + list_categories(), sender, phone_id)
             user_data["step"] = "choose_category"
@@ -457,6 +460,10 @@ def message_handler(data, phone_id):
             send("Sorry, I didn't understand. You can:\n- View Cart\n- Clear Cart\n- Remove <item>\n- Add Item", sender, phone_id)
 
 
+    elif step == "checkout":
+        send(f"{prod.name} x{qty} added.\n{show_cart(user)}\nWould you like to checkout? (yes/no)", sender, phone_id)
+        user_data["step"] = "ask_checkout"
+    
     elif step == "get_area":
         area = prompt.strip()
         if area in delivery_areas:
