@@ -373,10 +373,17 @@ def message_handler(data, phone_id):
 
     delivery_areas = {
         "Harare Main": 240,
-        "Chitungwiza": 300,
+        "Chitungwiza (includes Eyrecourt/Southlands/Stoneridge)": 300,
         "Mabvuku": 300,
         "Domboshava": 250,
-        "Marondera": 300
+        "Southlea Park": 300,
+        "Southview Park": 300,
+        "Epworth": 300,
+        "Mazoe": 300,
+        "Chinhoyi (Town only)": 350,
+        "Banket (Town only)": 350,
+        "Rusape": 400,
+        "Dema": 300
     }
 
     if step == "ask_name":
