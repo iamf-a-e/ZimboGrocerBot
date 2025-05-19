@@ -334,31 +334,40 @@ def message_handler(data, phone_id):
         user_data["step"] = "confirm_details"
 
     elif step == "confirm_details":
-        if prompt.lower() in ["yes", "y"]:
-            order_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
-            payment_info = f"Please make payment using one of the following options:\n\n1. Bank Transfer\nBank: ZimBank\nAccount: 123456789\nReference: {order_id}\n\n2. Pay at supermarkets: Shoprite, Checkers, Usave, Game, Spar, or Pick n Pay\n\n3. Pay via Mukuru\n\n4. Send via WorldRemit or Western Union\n\nInclude your Order ID as reference: {order_id}"
-            send(f"Order placed! 🛒\nOrder ID: {order_id}\n\n{show_cart(user)}\n\nReceiver: {user.checkout_data['receiver_name']}\nAddress: {user.checkout_data['address']}\nPhone: {user.checkout_data['phone']}\n\n{payment_info}", sender, phone_id)
-            user.clear_cart()
-            user_data["step"] = "ask_another_order"
-            
-
+    if prompt.lower() in ["yes", "y"]:
+        order_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+        payment_info = (
+            f"Please make payment using one of the following options:\n\n"
+            f"1. Bank Transfer\nBank: ZimBank\nAccount: 123456789\nReference: {order_id}\n\n"
+            f"2. Pay at supermarkets: Shoprite, Checkers, Usave, Game, Spar, or Pick n Pay\n\n"
+            f"3. Pay via Mukuru\n\n"
+            f"4. Send via WorldRemit or Western Union\n\n"
+            f"Include your Order ID as reference: {order_id}"
+        )
+        send(f"Order placed! 🛒\nOrder ID: {order_id}\n\n{show_cart(user)}\n\n"
+             f"Receiver: {user.checkout_data['receiver_name']}\n"
+             f"Address: {user.checkout_data['address']}\n"
+             f"Phone: {user.checkout_data['phone']}\n\n{payment_info}", sender, phone_id)
+        user.clear_cart()
+        user_data["step"] = "ask_another_order"
+    
     elif step == "ask_another_order":
         send("Would you like to place another order? (yes/no)", sender, phone_id)
-       if prompt.lower() in ["yes", "y"]:
-           send("Great! Here are the available categories:\n" + list_categories(), sender, phone_id)
-           user_data["step"] = "choose_category"
-    elif prompt.lower() in ["no", "n"]:
-        send("Thank you for your order! Have a great day! 😊", sender, phone_id)
-        user_data["step"] = None  # Reset or end session
-    else:
-        send("Please reply with 'yes' or 'no'.", sender, phone_id)
+        if prompt.lower() in ["yes", "y"]:
+            send("Great! Here are the available categories:\n" + list_categories(), sender, phone_id)
+            user_data["step"] = "choose_category"
+        elif prompt.lower() in ["no", "n"]:
+            send("Thank you for your order! Have a great day! 😊", sender, phone_id)
+            user_data["step"] = None  # Reset or end session
+        else:
+            send("Please reply with 'yes' or 'no'.", sender, phone_id)
+    
     else:
         send("Okay, let's correct the details. What's the receiver’s full name?", sender, phone_id)
         user_data["step"] = "get_receiver_name"
 
-  
-    elif step == "post_order_option":
-        if prompt.lower() in ["yes", "y"]:
+elif step == "post_order_option":
+    if prompt.lower() in ["yes", "y"]:
             send("Great! Please select a category:\n" + list_categories(), sender, phone_id)
             user_data["step"] = "choose_category"
         else:
