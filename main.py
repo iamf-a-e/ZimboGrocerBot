@@ -375,6 +375,7 @@ def message_handler(data, phone_id):
         "Harare Main": 240,
         "Chitungwiza (includes Eyrecourt/Southlands/Stoneridge)": 300,
         "Mabvuku": 300,
+        "Ruwa": 300,
         "Domboshava": 250,
         "Southlea Park": 300,
         "Southview Park": 300,
