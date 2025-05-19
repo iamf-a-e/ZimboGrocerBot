@@ -429,7 +429,7 @@ def message_handler(data, phone_id):
             prod = user_data["selected_product"]
             user.add_to_cart(prod, qty)
             send("What would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Add Item", sender, phone_id)
-            user_data["step"] = "get_area"
+            user_data["step"] = "post_add_menu"
         
         except:
             send("Please enter a valid number for quantity.", sender, phone_id)
@@ -442,21 +442,24 @@ def message_handler(data, phone_id):
 
     elif step == "post_add_menu":
         if prompt.lower() == "view cart":
-            send(show_cart(user), sender, phone_id)  # Show the cart immediately
-            send("Would you like to checkout? (yes/no)", sender, phone_id)  # Prompt for checkout
-            user_data["step"] = "ask_checkout"  # Set the next step to ask for checkout
+            cart_message = show_cart(user)  # Show the updated cart
+            send(cart_message, sender, phone_id)
+
+            # Prompt for delivery area selection
+            send("Please select your delivery area:\n" + "\n".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()]), sender, phone_id)
+            user_data["step"] = "get_area"
         elif prompt.lower() == "clear cart":
             user.clear_cart()
             send("Cart cleared.", sender, phone_id)
-            send("Would you like to checkout? (yes/no)", sender, phone_id)  # Prompt for checkout
-            user_data["step"] = "ask_checkout"
+            send("What would you like to do next?\n- View cart\n- Add Item", sender, phone_id)
+            user_data["step"] = "post_add_menu"
         elif prompt.lower().startswith("remove "):
             item = prompt[7:].strip()
             user.remove_from_cart(item)
             send(f"{item} removed from cart.\n{show_cart(user)}", sender, phone_id)
-            send("Would you like to checkout? (yes/no)", sender, phone_id)  # Prompt for checkout
-            user_data["step"] = "ask_checkout"
-        elif prompt.lower() in ["add", "add item", "add another", "add more", "i'd like to add", "want to add item", "add an item"]:
+            send("What would you like to do next?\n- View cart\n- Add Item", sender, phone_id)
+            user_data["step"] = "post_add_menu"
+        elif prompt.lower() in ["add", "add item", "add another", "add more"]:
             send("Sure! Here are the available categories:\n" + list_categories(), sender, phone_id)
             user_data["step"] = "choose_category"
         else:
@@ -465,9 +468,8 @@ def message_handler(data, phone_id):
 
     elif step == "ask_checkout":
         if prompt.lower() in ["yes", "y"]:
-            send("Please enter your delivery area.\n" +
-                 "\n".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()]), sender, phone_id)
-            user_data["step"] = "get_area"
+            send("Please enter the receiver’s full name.", sender, phone_id)
+            user_data["step"] = "get_receiver_name"
         elif prompt.lower() in ["no", "n"]:
             send("What would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Add Item", sender, phone_id)
             user_data["step"] = "post_add_menu"
@@ -483,12 +485,13 @@ def message_handler(data, phone_id):
             fee = delivery_areas[area]
             user.checkout_data["delivery_fee"] = fee
 
-            # Add delivery fee to cart as a line item (optional visual)
-            user.cart = [item for item in user.cart if item[0].name != "__Delivery__"]
+            # Add delivery fee to cart
             delivery_product = Product("__Delivery__", fee, f"Delivery to {area}")
             user.add_to_cart(delivery_product, 1)
-            
-            send("Enter the receiver’s full name.", sender, phone_id)
+
+            # Show updated cart with delivery fee
+            send(show_cart(user), sender, phone_id)
+            send("Would you like to checkout? (yes/no)", sender, phone_id)  # Prompt for checkout
             user_data["step"] = "ask_checkout"
         else:
             area_list = "\n".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()])
