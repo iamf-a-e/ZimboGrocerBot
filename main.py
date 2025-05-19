@@ -61,14 +61,108 @@ class OrderSystem:
         self.populate_products()
 
     def populate_products(self):
-        fresh = Category("Fresh Groceries")
-        fresh.add_product(Product("Beef", 147.99, "Economy steak on bone beef cuts 1kg"))
-        fresh.add_product(Product("Chicken", 179.99, "Ivines Mixed Portions 2kg"))
-        self.add_category(fresh)
-
+        # Pantry
+        pantry = Category("Pantry")
+        pantry.add_product(Product("Ace Instant Porridge 1kg Assorted", 27.99, "Instant porridge mix"))
+        pantry.add_product(Product("All Gold Tomato Sauce 700g", 44.99, "Tomato sauce"))
+        pantry.add_product(Product("Aromat Original 50g", 24.99, "Seasoning"))
+        pantry.add_product(Product("Bakers Inn/Proton Brown Bread", 23.99, "Brown loaf bread"))
+        pantry.add_product(Product("Bakers Inn/Proton White Loaf", 23.99, "White loaf bread"))
+        pantry.add_product(Product("Bella Macaroni 3kg", 82.99, "Macaroni pasta"))
+        pantry.add_product(Product("Bisto Gravy 125g", 19.99, "Gravy mix"))
+        pantry.add_product(Product("Blue Band Margarine 500g", 44.99, "Margarine"))
+        pantry.add_product(Product("Blue Ribbon Self Raising 2kg", 37.99, "Self-raising flour"))
+        pantry.add_product(Product("Bokomo Cornflakes 1kg", 54.90, "Cornflakes"))
+        pantry.add_product(Product("Bullbrand Corned Beef 300g", 39.99, "Corned beef"))
+        pantry.add_product(Product("Buttercup Margarine 500g", 44.99, "Margarine"))
+        pantry.add_product(Product("Cashel Valley Baked Beans 400g", 18.99, "Baked beans"))
+        pantry.add_product(Product("Cerevita 500g", 69.99, "Cereal"))
+        pantry.add_product(Product("Cookmore/Puredrop Cooking Oil 2L", 67.99, "Cooking oil"))
+        pantry.add_product(Product("Cross and Blackwell Mayonnaise 700g", 49.99, "Mayonnaise"))
+        pantry.add_product(Product("Dried Kapenta 1kg", 134.99, "Dried fish"))
+        pantry.add_product(Product("Ekono/Ideal Rice 5kg", 119.29, "Rice"))
+        pantry.add_product(Product("Fattis Macaroni 500g", 22.99, "Macaroni"))
+        pantry.add_product(Product("Gloria Self Raising Flour 5kg", 79.90, "Self-raising flour"))
+        pantry.add_product(Product("Jungle Oats 1kg", 44.99, "Oats"))
+        pantry.add_product(Product("Knorr Brown Onion Soup 50g", 7.99, "Onion soup mix"))
+        pantry.add_product(Product("Lucky Star Pilchards in Tomato Sauce 155g", 17.99, "Pilchards"))
+        pantry.add_product(Product("Mahatma Rice 2kg", 52.99, "Rice"))
+        pantry.add_product(Product("Peanut Butter 350ml", 19.99, "Peanut butter"))
+        pantry.add_product(Product("Roller Meal 10kg- Zim Meal", 136.99, "Maize meal"))
+        
+        self.add_category(pantry)
+        
+        # Beverages
         beverages = Category("Beverages")
-        beverages.add_product(Product("Coca Cola", 39.99, "Coca cola 2L"))
+        beverages.add_product(Product("Coca Cola 2L", 39.99, "Soft drink"))
+        beverages.add_product(Product("Mazoe Raspberry 2 Litres", 67.99, "Fruit drink"))
+        beverages.add_product(Product("Sprite 2 Litres", 37.99, "Soft drink"))
+        beverages.add_product(Product("Nestle Gold Cross Condensed Milk 385g", 29.99, "Condensed milk"))
+        beverages.add_product(Product("Dendairy Long Life Full Cream Milk 1 Litre", 28.99, "Long life milk"))
+        
         self.add_category(beverages)
+        
+        # Household
+        household = Category("Household")
+        household.add_product(Product("Sunlight Dishwashing Liquid 750ml", 35.99, "Dishwashing liquid"))
+        household.add_product(Product("Domestos Thick Bleach 750ml", 39.99, "Bleach cleaner"))
+        household.add_product(Product("Handy Andy Assorted 500ml", 32.99, "Multi-surface cleaner"))
+        household.add_product(Product("Maq Dishwashing Liquid 750ml", 35.99, "Dishwashing liquid"))
+        
+        self.add_category(household)
+        
+        # Personal Care
+        personal_care = Category("Personal Care")
+        personal_care.add_product(Product("Protex Bath Soap Assorted 150g", 21.99, "Bath soap"))
+        personal_care.add_product(Product("Nivea Men's Roll On Assorted 50ml", 33.99, "Deodorant"))
+        personal_care.add_product(Product("Clere Lanolin Lotion 400ml", 35.99, "Body lotion"))
+        personal_care.add_product(Product("Vaseline Petroleum Jelly Original 250ml", 39.99, "Petroleum jelly"))
+        
+        self.add_category(personal_care)
+        
+        # Snacks and Sweets
+        snacks = Category("Snacks and Sweets")
+        snacks.add_product(Product("Jena Maputi 15pack", 23.99, "Popcorn"))
+        snacks.add_product(Product("Tiggies/Zim Naks Assorted 50s", 74.99, "Snacks"))
+        snacks.add_product(Product("Pringles Original 110g", 22.90, "Potato chips"))
+        snacks.add_product(Product("Willards Cheezies 150g", 14.99, "Cheese snacks"))
+        
+        self.add_category(snacks)
+        
+        # Fresh Groceries
+        fresh = Category("Fresh Groceries")
+        fresh.add_product(Product("Economy Steak on Bone Beef Cuts 1kg", 147.99, "Fresh beef"))
+        fresh.add_product(Product("Irvine's Mixed Chicken Cuts 2kg", 179.99, "Mixed chicken cuts"))
+        fresh.add_product(Product("Potatoes 7.5kg", 219.99, "Fresh potatoes"))
+        fresh.add_product(Product("Dairibord/Kefalos Yoghurt 150ml", 15.99, "Yoghurt"))
+        
+        self.add_category(fresh)
+        
+        # Stationery
+        stationery = Category("Stationery")
+        stationery.add_product(Product("Plastic Cover 3 Meter Roll", 7.99, "Plastic cover"))
+        stationery.add_product(Product("A4 Bond Paper White", 126.99, "Bond paper"))
+        stationery.add_product(Product("Cellotape Large 40yard", 5.99, "Cellotape"))
+        stationery.add_product(Product("Sharp Scientific Calculator", 319.99, "Calculator"))
+        
+        self.add_category(stationery)
+        
+        # Baby Section
+        baby_section = Category("Baby Section")
+        baby_section.add_product(Product("Huggies Dry Comfort Jumbo Size 5 (44s)", 299.99, "Diapers"))
+        baby_section.add_product(Product("Predo Baby Wipes Assorted 120s", 52.90, "Baby wipes"))
+        baby_section.add_product(Product("Johnson and Johnson Scented Baby Jelly 325ml", 52.99, "Baby jelly"))
+        
+        self.add_category(baby_section)
+        
+        # Snacks and Sweets
+        snacks = Category("Snacks and Sweets")
+        snacks.add_product(Product("Jena Maputi 15pack", 23.99, "Popcorn"))
+        snacks.add_product(Product("Tiggies/Zim Naks Assorted 50s", 74.99, "Snacks"))
+        snacks.add_product(Product("Pringles Original 110g", 22.90, "Potato chips"))
+        snacks.add_product(Product("Willards Cheezies 150g", 14.99, "Cheese snacks"))
+
+self.add_category(snacks)
 
     def add_category(self, category):
         self.categories[category.name] = category
