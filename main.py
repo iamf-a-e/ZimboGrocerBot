@@ -349,8 +349,8 @@ def message_handler(data, phone_id):
              f"Address: {user.checkout_data['address']}\n"
              f"Phone: {user.checkout_data['phone']}\n\n{payment_info}", sender, phone_id)
         user.clear_cart()
-        user_data["step"] = "choose_category"
-        send("Would you like to place another order? Select a category:\n" + list_categories(), sender, phone_id)
+        user_data["step"] = "post_order_option"
+        send("Would you like to place another order? (yes/no)\n", sender, phone_id)
 
  
     else:
