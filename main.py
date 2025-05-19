@@ -442,12 +442,12 @@ def message_handler(data, phone_id):
         if prompt.lower() == "view cart":
             send(show_cart(user), sender, phone_id)
             send("Would you like to checkout? (yes/no)", sender, phone_id)  # Prompt for checkout
-            user_data["step"] = "checkout"
+            user_data["step"] = "ask_checkout"
         elif prompt.lower() == "clear cart":
             user.clear_cart()
             send("Cart cleared.", sender, phone_id)
             send("Would you like to checkout? (yes/no)", sender, phone_id)  # Prompt for checkout
-            user_data["step"] = "checkout"
+            user_data["step"] = "ask_checkout"
         elif prompt.lower().startswith("remove "):
             item = prompt[7:].strip()
             user.remove_from_cart(item)
