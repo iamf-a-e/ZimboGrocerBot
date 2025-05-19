@@ -339,9 +339,12 @@ def message_handler(data, phone_id):
             payment_info = f"Please make payment using one of the following options:\n\n1. Bank Transfer\nBank: ZimBank\nAccount: 123456789\nReference: {order_id}\n\n2. Pay at supermarkets: Shoprite, Checkers, Usave, Game, Spar, or Pick n Pay\n\n3. Pay via Mukuru\n\n4. Send via WorldRemit or Western Union\n\nInclude your Order ID as reference: {order_id}"
             send(f"Order placed! 🛒\nOrder ID: {order_id}\n\n{show_cart(user)}\n\nReceiver: {user.checkout_data['receiver_name']}\nAddress: {user.checkout_data['address']}\nPhone: {user.checkout_data['phone']}\n\n{payment_info}", sender, phone_id)
             user.clear_cart()
-            user_data["step"] = "choose_category"
-            send("Would you like to place another order? (yes/no)", sender, phone_id)
-        if prompt.lower() in ["yes", "y"]:
+            user_data["step"] = "ask_another_order"
+            
+
+    elif step == "ask_another_order":
+        send("Would you like to place another order? (yes/no)", sender, phone_id)
+       if prompt.lower() in ["yes", "y"]:
         send("Great! Here are the available categories:\n" + list_categories(), sender, phone_id)
         user_data["step"] = "choose_category"
     elif prompt.lower() in ["no", "n"]:
@@ -349,7 +352,7 @@ def message_handler(data, phone_id):
         user_data["step"] = None  # Reset or end session
     else:
         send("Please reply with 'yes' or 'no'.", sender, phone_id)
-        else:
+    else:
             send("Okay, let's correct the details. What's the receiver’s full name?", sender, phone_id)
             user_data["step"] = "get_receiver_name"
 
