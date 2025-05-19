@@ -427,7 +427,7 @@ def message_handler(data, phone_id):
             qty = int(prompt)
             prod = user_data["selected_product"]
             user.add_to_cart(prod, qty)
-            send(f"{prod.name} x{qty} added.\n{show_cart(user)}\nWould you like to checkout? (yes/no)", sender, phone_id)
+            send("What would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Add Item", sender, phone_id)
             user_data["step"] = "get_area"
         except:
             send("Please enter a valid number for quantity.", sender, phone_id)
@@ -436,9 +436,7 @@ def message_handler(data, phone_id):
         if prompt.lower() in ["yes", "y"]:
             send("Please enter the receiver’s full name.", sender, phone_id)
             user_data["step"] = "get_receiver_name"
-        else:
-            send("What would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Add Item", sender, phone_id)
-            user_data["step"] = "post_add_menu"
+
 
     elif step == "post_add_menu":
         if prompt.lower() == "view cart":
