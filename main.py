@@ -460,8 +460,8 @@ def message_handler(data, phone_id):
             send("What would you like to do next?\n- View cart\n- Add Item", sender, phone_id)
             user_data["step"] = "post_add_menu"
         elif prompt.lower() in ["add", "add item", "add another", "add more"]:
-        send("Sure! Here are the available categories:\n" + list_categories(), sender, phone_id)
-        user_data["step"] = "choose_category"  # Transition to category selection
+            send("Sure! Here are the available categories:\n" + list_categories(), sender, phone_id)
+            user_data["step"] = "choose_category"  # Transition to category selection
         else:
             send("Sorry, I didn't understand. You can:\n- View Cart\n- Clear Cart\n- Remove <item>\n- Add Item", sender, phone_id)
 
