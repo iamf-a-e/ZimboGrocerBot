@@ -404,7 +404,7 @@ def message_handler(data, phone_id):
         if 0 <= idx < len(categories):
             cat = categories[idx]
             user_data["selected_category"] = cat
-            send(f"Products in {cat}:\n{list_products(cat)}\nSelect a product by number.", sender, phone_id)
+            send("Sure! Here are the available categories:\n" + list_categories(), sender, phone_id)  # Show categories
             user_data["step"] = "choose_product"
         else:
             send("Invalid category. Try again:\n" + list_categories(), sender, phone_id)
