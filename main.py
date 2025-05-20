@@ -22,6 +22,15 @@ owner_phone_4 = os.environ.get("OWNER_PHONE_4")
 app = Flask(__name__)
 user_states = {}
 
+def get_user_state(user_id):
+    if user_id not in user_states:
+        user_states[user_id] = {
+            "cart": [],
+            "history": [],
+            "order_completed": False
+        }
+    return user_states[user_id]
+
 class User:
     def __init__(self, payer_name, payer_phone):
         self.payer_name = payer_name
