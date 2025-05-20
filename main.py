@@ -8,7 +8,6 @@ from flask import Flask, request, jsonify, render_template
 from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from session_manager import SessionManager
 
 logging.basicConfig(level=logging.INFO)
 
