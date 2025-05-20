@@ -132,6 +132,7 @@ class OrderSystem:
         pantry.add_product(Product("Peanut Butter 350ml", 19.99, "Peanut butter"))
         pantry.add_product(Product("Roller Meal 10kg- Zim Meal", 136.99, "Maize meal"))
         self.add_category(pantry)
+        
         # Beverages
         beverages = Category("Beverages")
         beverages.add_product(Product("Stella Teabags 100 Pack", 42.99, "Tea bags"))
