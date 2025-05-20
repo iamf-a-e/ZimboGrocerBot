@@ -23,7 +23,6 @@ owner_phone_2 = os.environ.get("OWNER_PHONE_2")
 owner_phone_3 = os.environ.get("OWNER_PHONE_3")
 owner_phone_4 = os.environ.get("OWNER_PHONE_4")
 
-
 app = Flask(__name__)
 user_states = {}
 
@@ -60,6 +59,34 @@ class User:
 
     def get_cart_contents(self):
         return self.cart
+
+    def to_dict(self):
+        return {
+            "payer_name": self.payer_name,
+            "payer_phone": self.payer_phone,
+            "cart": [
+                {
+                    "product": {
+                        "name": p.name,
+                        "price": p.price,
+                        "description": p.description
+                    },
+                    "quantity": q
+                }
+                for p, q in self.cart
+            ],
+            "checkout_data": self.checkout_data
+        }
+
+    @staticmethod
+    def from_dict(data):
+        user = User(data.get("payer_name", ""), data.get("payer_phone", ""))
+        user.cart = [
+            (Product(item["product"]["name"], item["product"]["price"], item["product"]["description"]), item["quantity"])
+            for item in data.get("cart", [])
+        ]
+        user.checkout_data = data.get("checkout_data", {})
+        return user
 
 class Product:
     def __init__(self, name, price, description):
@@ -323,7 +350,6 @@ class OrderSystem:
         baby_section.add_product(Product("Nan 1: Infant Formula Optipro 400g", 79.99, "Infant formula"))
         self.add_category(baby_section)
         
-
     def add_category(self, category):
         self.categories[category.name] = category
 
@@ -371,18 +397,22 @@ def message_handler(data, phone_id):
     sender = data["from"]
     prompt = data["text"]["body"].strip()
 
+    # Load session
     session = load_user_session(sender)
+    order_system = OrderSystem()
+    user = None
     if session:
+        # Restore user object if present
+        if "user" in session and session["user"]:
+            user = User.from_dict(session["user"])
+        else:
+            user = None
         user_data = session
-    # If needed, re-instantiate objects from session data here
-    # For simplicity, you might only store basic info (step, cart, etc.)
     else:
-        user_data = {"step": "ask_name", "order_system": OrderSystem()}
+        user_data = {"step": "ask_name", "user": None}
+        user = None
 
     step = user_data["step"]
-    order_system = user_data["order_system"]
-    user = user_data.get("user")
-
 
     def list_categories():
         return "\n".join([f"{chr(65+i)}. {cat}" for i, cat in enumerate(order_system.list_categories())])
@@ -421,7 +451,7 @@ def message_handler(data, phone_id):
 
     elif step == "save_name":
         user = User(prompt.title(), sender)
-        user_data["user"] = user
+        user_data["user"] = user.to_dict()
         send(f"Thanks {user.payer_name}! Please select a category:\n{list_categories()}", sender, phone_id)
         user_data["step"] = "choose_category"
 
@@ -436,14 +466,17 @@ def message_handler(data, phone_id):
         else:
             send("Invalid category. Try again:\n" + list_categories(), sender, phone_id)
 
-
     elif step == "choose_product":
         try:
             index = int(prompt) - 1
             cat = user_data["selected_category"]
             products = order_system.list_products(cat)
             if 0 <= index < len(products):
-                user_data["selected_product"] = products[index]
+                user_data["selected_product"] = {
+                    "name": products[index].name,
+                    "price": products[index].price,
+                    "description": products[index].description
+                }
                 send(f"You selected {products[index].name}. How many would you like to add?", sender, phone_id)
                 user_data["step"] = "ask_quantity"
             else:
@@ -451,15 +484,17 @@ def message_handler(data, phone_id):
         except:
             send("Please enter a valid number.", sender, phone_id)
 
-
     elif step == "ask_quantity":
         try:
             qty = int(prompt)
-            prod = user_data["selected_product"]
+            prod_dict = user_data["selected_product"]
+            prod = Product(prod_dict["name"], prod_dict["price"], prod_dict["description"])
+            if not user:
+                user = User("", sender)
             user.add_to_cart(prod, qty)
+            user_data["user"] = user.to_dict()
             send("What would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Add Item", sender, phone_id)
             user_data["step"] = "post_add_menu"
-        
         except:
             send("Please enter a valid number for quantity.", sender, phone_id)
 
@@ -473,7 +508,6 @@ def message_handler(data, phone_id):
         else:
             send("Please respond with 'yes' or 'no'.", sender, phone_id)
 
-
     elif step == "post_add_menu":
         if prompt.lower() == "view cart":
             cart_message = show_cart(user)  # Show the updated cart
@@ -484,12 +518,14 @@ def message_handler(data, phone_id):
             user_data["step"] = "get_area"
         elif prompt.lower() == "clear cart":
             user.clear_cart()
+            user_data["user"] = user.to_dict()
             send("Cart cleared.", sender, phone_id)
             send("What would you like to do next?\n- View cart\n- Add Item", sender, phone_id)
             user_data["step"] = "post_add_menu"
         elif prompt.lower().startswith("remove "):
             item = prompt[7:].strip()
             user.remove_from_cart(item)
+            user_data["user"] = user.to_dict()
             send(f"{item} removed from cart.\n{show_cart(user)}", sender, phone_id)
             send("What would you like to do next?\n- View cart\n- Add Item", sender, phone_id)
             user_data["step"] = "post_add_menu"
@@ -499,22 +535,11 @@ def message_handler(data, phone_id):
         else:
             send("Sorry, I didn't understand. You can:\n- View Cart\n- Clear Cart\n- Remove <item>\n- Add Item", sender, phone_id)
 
-
-    elif step == "ask_checkout":
-        if prompt.lower() in ["yes", "y"]:
-            send("Please enter the receiver’s full name.", sender, phone_id)
-            user_data["step"] = "get_receiver_name"
-        elif prompt.lower() in ["no", "n"]:
-            send("What would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Add Item", sender, phone_id)
-            user_data["step"] = "post_add_menu"
-        else:
-            send("Please respond with 'yes' or 'no'.", sender, phone_id)
-
-        
-    
     elif step == "get_area":
         area = prompt.strip()
         if area in delivery_areas:
+            if not user:
+                user = User("", sender)
             user.checkout_data["delivery_area"] = area
             fee = delivery_areas[area]
             user.checkout_data["delivery_fee"] = fee
@@ -522,6 +547,7 @@ def message_handler(data, phone_id):
             # Add delivery fee to cart
             delivery_product = Product("__Delivery__", fee, f"Delivery to {area}")
             user.add_to_cart(delivery_product, 1)
+            user_data["user"] = user.to_dict()
 
             # Show updated cart with delivery fee
             send(show_cart(user), sender, phone_id)
@@ -533,21 +559,25 @@ def message_handler(data, phone_id):
 
     elif step == "get_receiver_name":
         user.checkout_data["receiver_name"] = prompt
+        user_data["user"] = user.to_dict()
         send("Enter the delivery address.", sender, phone_id)
         user_data["step"] = "get_address"
 
     elif step == "get_address":
         user.checkout_data["address"] = prompt
+        user_data["user"] = user.to_dict()
         send("Enter receiver’s ID number.", sender, phone_id)
         user_data["step"] = "get_id"
 
     elif step == "get_id":
         user.checkout_data["id_number"] = prompt
+        user_data["user"] = user.to_dict()
         send("Enter receiver’s phone number.", sender, phone_id)
         user_data["step"] = "get_phone"
 
     elif step == "get_phone":
         user.checkout_data["phone"] = prompt
+        user_data["user"] = user.to_dict()
         details = user.checkout_data
         confirm_message = f"Please confirm the details below:\n\nName: {details['receiver_name']}\nAddress: {details['address']}\nID: {details['id_number']}\nPhone: {details['phone']}\n\nAre these details correct? (yes/no)"
         send(confirm_message, sender, phone_id)
@@ -559,6 +589,7 @@ def message_handler(data, phone_id):
             payment_info = f"Please make payment using one of the following options:\n\n1. Bank Transfer\nBank: ZimBank\nAccount: 123456789\nReference: {order_id}\n\n2. Pay at supermarkets: Shoprite, Checkers, Usave, Game, Spar, or Pick n Pay\n\n3. Pay via Mukuru\n\n4. Send via WorldRemit or Western Union\n\nInclude your Order ID as reference: {order_id}"
             send(f"Order placed! 🛒\nOrder ID: {order_id}\n\n{show_cart(user)}\n\nReceiver: {user.checkout_data['receiver_name']}\nAddress: {user.checkout_data['address']}\nPhone: {user.checkout_data['phone']}\n\n{payment_info}", sender, phone_id)
             user.clear_cart()
+            user_data["user"] = user.to_dict()
             user_data["step"] = "ask_place_another_order"
             send("Would you like to place another order? (yes/no)", sender, phone_id)
         else:
@@ -573,7 +604,8 @@ def message_handler(data, phone_id):
             send("Okay. Have a good day! 😊", sender, phone_id)
             user_data["step"] = "ask_name"
 
-           
+    # Save session
+    save_user_session(sender, user_data)
 
 if __name__ == "__main__":
     app.run(debug=True, port=8000)
