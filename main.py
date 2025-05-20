@@ -472,13 +472,16 @@ def message_handler(data, phone_id, session_data):
             send("Sorry, I didn't understand. You can:\n- View Cart\n- Clear Cart\n- Remove <item>\n- Add Item", sender, phone_id)
         return
 
+    # Delivery location step: add delivery fee to cart and show updated cart immediately
     if step == "get_area":
         area = prompt.strip()
         if area in delivery_areas:
             user.checkout_data["delivery_area"] = area
             fee = delivery_areas[area]
             user.checkout_data["delivery_fee"] = fee
-            delivery_product = Product("__Delivery__", fee, f"Delivery to {area}")
+            # Remove previous delivery if present
+            user.remove_from_cart("__delivery__")
+            delivery_product = Product("__delivery__", fee, f"Delivery to {area}")
             user.add_to_cart(delivery_product, 1)
             send(show_cart(user), sender, phone_id)
             send("Would you like to checkout? (yes/no)", sender, phone_id)
