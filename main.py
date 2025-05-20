@@ -458,25 +458,25 @@ def message_handler(data, phone_id):
 
 
     elif step == "post_add_menu":
-        if prompt.lower() == "view cart":
+        if prompt.lower() == "view cart" and ask_checkout:
             cart_message = show_cart(user)  # Show the updated cart
             send(cart_message, sender, phone_id)
 
             # Prompt for delivery area selection
             send("Please select your delivery area:\n" + "\n".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()]), sender, phone_id)
             user_data["step"] = "get_area"
-        elif prompt.lower() == "clear cart":
+        elif prompt.lower() == "clear cart"and ask_checkout:
             user.clear_cart()
             send("Cart cleared.", sender, phone_id)
             send("What would you like to do next?\n- View cart\n- Add Item", sender, phone_id)
             user_data["step"] = "post_add_menu"
-        elif prompt.lower().startswith("remove "):
+        elif prompt.lower().startswith("remove ") and ask_checkout:
             item = prompt[7:].strip()
             user.remove_from_cart(item)
             send(f"{item} removed from cart.\n{show_cart(user)}", sender, phone_id)
             send("What would you like to do next?\n- View cart\n- Add Item", sender, phone_id)
             user_data["step"] = "post_add_menu"
-        elif prompt.lower() in ["add", "add item", "add another", "add more"]:
+        elif prompt.lower() in ["add", "add item", "add another", "add more"] and ask_checkout:
             send("Sure! Here are the available categories:\n" + list_categories(), sender, phone_id)
             user_data["step"] = "choose_category"  # Transition to category selection
         else:
@@ -537,7 +537,7 @@ def message_handler(data, phone_id):
         user_data["step"] = "confirm_details"
     
     elif step == "confirm_details":
-        if prompt.lower() in ["yes", "y"]:
+        if prompt.lower() in ["yes", "y"] and get_phone:
             order_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
             payment_info = f"Please make payment using one of the following options:\n\n1. Bank Transfer\nBank: ZimBank\nAccount: 123456789\nReference: {order_id}\n\n2. Pay at supermarkets: Shoprite, Checkers, Usave, Game, Spar, or Pick n Pay\n\n3. Pay via Mukuru\n\n4. Send via WorldRemit or Western Union\n\nInclude your Order ID as reference: {order_id}"
             send(f"Order placed! 🛒\nOrder ID: {order_id}\n\n{show_cart(user)}\n\nReceiver: {user.checkout_data['receiver_name']}\nAddress: {user.checkout_data['address']}\nPhone: {user.checkout_data['phone']}\n\n{payment_info}", sender, phone_id)
@@ -549,7 +549,7 @@ def message_handler(data, phone_id):
             user_data["step"] = "get_receiver_name"
     
     elif step == "ask_place_another_order":
-        if prompt.lower() in ["yes", "y"]:
+        if prompt.lower() in ["yes", "y"] and ask_place_another_order:
             send("Great! Please select a category:\n" + list_categories(), sender, phone_id)
             user_data["step"] = "choose_category"
         else:
