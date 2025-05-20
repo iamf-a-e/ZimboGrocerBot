@@ -8,7 +8,6 @@ from flask import Flask, request, jsonify, render_template
 from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-import threading
 
 logging.basicConfig(level=logging.INFO)
 
@@ -22,17 +21,6 @@ owner_phone_4 = os.environ.get("OWNER_PHONE_4")
 
 app = Flask(__name__)
 user_states = {}
-user_states_lock = threading.Lock()
-
-def get_user_state(user_id):
-    with user_states_lock:
-        if user_id not in user_states:
-            user_states[user_id] = {
-                "cart": [],
-                "history": [],
-                "order_completed": False
-            }
-        return user_states[user_id]
 
 class User:
     def __init__(self, payer_name, payer_phone):
@@ -358,7 +346,7 @@ def webhook():
         data = request.get_json()["entry"][0]["changes"][0]["value"]["messages"][0]
         phone_id = request.get_json()["entry"][0]["changes"][0]["value"]["metadata"]["phone_number_id"]
         # Thread-safe: Call handler in a new thread for each message
-        threading.Thread(target=message_handler, args=(data, phone_id)).start()
+        message_handler(data, phone_id)
         return jsonify({"status": "ok"}), 200
 
 def message_handler(data, phone_id):
