@@ -474,10 +474,10 @@ def message_handler(data, phone_id):
 
 
     elif step == "ask_checkout":
-        if prompt.lower() in ["yes", "y"]:
+        if prompt.lower() in ["yes", "y"] and get_area:
             send("Please enter the receiver’s full name.", sender, phone_id)
             user_data["step"] = "get_receiver_name"
-        elif prompt.lower() in ["no", "n"]:
+        elif prompt.lower() in ["no", "n"] and get_area:
             send("What would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Add Item", sender, phone_id)
             user_data["step"] = "post_add_menu"
         else:
