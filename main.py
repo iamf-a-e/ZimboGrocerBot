@@ -21,7 +21,6 @@ owner_phone_2 = os.environ.get("OWNER_PHONE_2")
 owner_phone_3 = os.environ.get("OWNER_PHONE_3")
 owner_phone_4 = os.environ.get("OWNER_PHONE_4")
 
-app = Flask(__name__)
 app = Quart(__name__)
 user_states = {}
 
