@@ -8,6 +8,8 @@ from flask import Flask, request, jsonify, render_template
 from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from quart import Quart, request, jsonify, render_template
+import httpx
 
 logging.basicConfig(level=logging.INFO)
 
@@ -20,6 +22,7 @@ owner_phone_3 = os.environ.get("OWNER_PHONE_3")
 owner_phone_4 = os.environ.get("OWNER_PHONE_4")
 
 app = Flask(__name__)
+app = Quart(__name__)
 user_states = {}
 
 class User:
@@ -313,11 +316,12 @@ class OrderSystem:
     def list_products(self, category_name):
         return self.categories[category_name].products if category_name in self.categories else []
 
-def send(answer, sender, phone_id):
+async def send(answer, sender, phone_id):
+    """Send a message asynchronously using httpx."""
     url = f"https://graph.facebook.com/v19.0/{phone_id}/messages"
     headers = {
-        'Authorization': f'Bearer {wa_token}',
-        'Content-Type': 'application/json'
+        "Authorization": f"Bearer {wa_token}",
+        "Content-Type": "application/json"
     }
     data = {
         "messaging_product": "whatsapp",
@@ -325,14 +329,18 @@ def send(answer, sender, phone_id):
         "type": "text",
         "text": {"body": answer}
     }
-    requests.post(url, headers=headers, json=data)
+    async with httpx.AsyncClient() as client:
+        await client.post(url, headers=headers, json=data)
+
+
 
 @app.route("/", methods=["GET", "POST"])
-def index():
-    return render_template("connected.html")
+async def index():
+    return await render_template("connected.html")
+
 
 @app.route("/webhook", methods=["GET", "POST"])
-def webhook():
+async def webhook():
     if request.method == "GET":
         mode = request.args.get("hub.mode")
         token = request.args.get("hub.verify_token")
@@ -342,19 +350,29 @@ def webhook():
         return "Failed", 403
 
     elif request.method == "POST":
-        data = request.get_json()["entry"][0]["changes"][0]["value"]["messages"][0]
-        phone_id = request.get_json()["entry"][0]["changes"][0]["value"]["metadata"]["phone_number_id"]
-        message_handler(data, phone_id)
-        return jsonify({"status": "ok"}), 200
+        try:
+            data = (await request.get_json())["entry"][0]["changes"][0]["value"]["messages"][0]
+            phone_id = (await request.get_json())["entry"][0]["changes"][0]["value"]["metadata"]["phone_number_id"]
+            await message_handler(data, phone_id)
+            return jsonify({"status": "ok"}), 200
+        except Exception as e:
+            logging.error(f"Error handling webhook: {e}")
+            return jsonify({"status": "error", "message": str(e)}), 500
 
-def message_handler(data, phone_id):
+
+async def message_handler(data, phone_id):
     sender = data["from"]
     prompt = data["text"]["body"].strip()
-    user_data = user_states.setdefault(sender, {"step": "ask_name", "order_system": OrderSystem()})
 
+    # Initialize state for a new user if not already present
+    if sender not in user_states:
+        user_states[sender] = {"step": "ask_name", "order_system": OrderSystem()}
+
+    user_data = user_states[sender]
     step = user_data["step"]
     order_system = user_data["order_system"]
     user = user_data.get("user")
+
 
 
     def list_categories():
