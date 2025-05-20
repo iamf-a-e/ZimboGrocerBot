@@ -8,6 +8,10 @@ from flask import Flask, request, jsonify, render_template
 from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+import json
+
+SESSION_DIR = "sessions"
+os.makedirs(SESSION_DIR, exist_ok=True)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -19,8 +23,24 @@ owner_phone_2 = os.environ.get("OWNER_PHONE_2")
 owner_phone_3 = os.environ.get("OWNER_PHONE_3")
 owner_phone_4 = os.environ.get("OWNER_PHONE_4")
 
+
 app = Flask(__name__)
 user_states = {}
+
+def session_file_path(sender):
+    return os.path.join(SESSION_DIR, f"{sender}.json")
+
+def load_user_session(sender):
+    path = session_file_path(sender)
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            return json.load(f)
+    return None
+
+def save_user_session(sender, data):
+    path = session_file_path(sender)
+    with open(path, "w") as f:
+        json.dump(data, f)
 
 class User:
     def __init__(self, payer_name, payer_phone):
@@ -350,7 +370,14 @@ def webhook():
 def message_handler(data, phone_id):
     sender = data["from"]
     prompt = data["text"]["body"].strip()
-    user_data = user_states.setdefault(sender, {"step": "ask_name", "order_system": OrderSystem()})
+
+    session = load_user_session(sender)
+    if session:
+        user_data = session
+    # If needed, re-instantiate objects from session data here
+    # For simplicity, you might only store basic info (step, cart, etc.)
+    else:
+        user_data = {"step": "ask_name", "order_system": OrderSystem()}
 
     step = user_data["step"]
     order_system = user_data["order_system"]
