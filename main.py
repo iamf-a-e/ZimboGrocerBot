@@ -458,25 +458,25 @@ def message_handler(data, phone_id):
 
 
     elif step == "post_add_menu":
-        if prompt.lower() == "view cart" and ask_checkout:
+        if prompt.lower() == "view cart":
             cart_message = show_cart(user)  # Show the updated cart
             send(cart_message, sender, phone_id)
 
             # Prompt for delivery area selection
             send("Please select your delivery area:\n" + "\n".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()]), sender, phone_id)
             user_data["step"] = "get_area"
-        elif prompt.lower() == "clear cart"and ask_checkout:
+        elif prompt.lower() == "clear cart":
             user.clear_cart()
             send("Cart cleared.", sender, phone_id)
             send("What would you like to do next?\n- View cart\n- Add Item", sender, phone_id)
             user_data["step"] = "post_add_menu"
-        elif prompt.lower().startswith("remove ") and ask_checkout:
+        elif prompt.lower().startswith("remove "):
             item = prompt[7:].strip()
             user.remove_from_cart(item)
             send(f"{item} removed from cart.\n{show_cart(user)}", sender, phone_id)
             send("What would you like to do next?\n- View cart\n- Add Item", sender, phone_id)
             user_data["step"] = "post_add_menu"
-        elif prompt.lower() in ["add", "add item", "add another", "add more"] and ask_checkout:
+        elif prompt.lower() in ["add", "add item", "add another", "add more"]:
             send("Sure! Here are the available categories:\n" + list_categories(), sender, phone_id)
             user_data["step"] = "choose_category"  # Transition to category selection
         else:
