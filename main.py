@@ -341,46 +341,6 @@ def send(answer, sender, phone_id):
 def index():
     return render_template("connected.html")
 
-session_manager = SessionManager()
-
-# session_manager.py
-
-class SessionManager:
-    def __init__(self):
-        self.user_sessions = {}
-
-    def get_session(self, user_id):
-        if user_id not in self.user_sessions:
-            self.user_sessions[user_id] = {
-                "cart": [],
-                "history": [],
-                "order_completed": False,
-                "last_message": None,
-                "state": None,  # e.g., 'awaiting_quantity', 'awaiting_category', etc.
-                "checkout_data": {},
-                "delivery_area": None,
-                "awaiting_confirmation": False
-            }
-        return self.user_sessions[user_id]
-
-    def clear_session(self, user_id):
-        if user_id in self.user_sessions:
-            del self.user_sessions[user_id]
-
-    def set_state(self, user_id, state):
-        session = self.get_session(user_id)
-        session["state"] = state
-
-    def get_state(self, user_id):
-        return self.get_session(user_id).get("state")
-
-    def update_session(self, user_id, key, value):
-        session = self.get_session(user_id)
-        session[key] = value
-
-    def get_value(self, user_id, key):
-        return self.get_session(user_id).get(key)
-
 
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
