@@ -8,6 +8,36 @@ from flask import Flask, request, jsonify, render_template
 from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from ZimboGrocerBot import engine
+
+Base = declarative_base()
+
+class UserSession(Base):
+    __tablename__ = 'user_sessions'
+
+    id = Column(Integer, primary_key=True)
+    payer_phone = Column(String, unique=True, nullable=False)
+    payer_name = Column(String)
+    cart_data = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+    order_stage = Column(String, default="start")
+
+    @classmethod
+    def load_session(cls, phone_number):
+        session = Session()
+        return session.query(cls).filter_by(payer_phone=phone_number).first()
+
+    def save_session(self):
+        session = Session()
+        session.merge(self)
+        session.commit()
+
+    def reset_cart(self):
+        self.cart = {}
+        self.order_stage = "start"
+
+Base.metadata.create_all(engine)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -23,23 +53,56 @@ app = Flask(__name__)
 user_states = {}
 
 class User:
-    def __init__(self, payer_name, payer_phone):
+    def __init__(self, payer_name, payer_phone, cart=None):
         self.payer_name = payer_name
         self.payer_phone = payer_phone
-        self.cart = []
-        self.checkout_data = {}
+        self.cart = cart if cart else []
 
     def add_to_cart(self, product, quantity):
         self.cart.append((product, quantity))
+        self.save_session()
 
     def remove_from_cart(self, product_name):
         self.cart = [item for item in self.cart if item[0].name.lower() != product_name.lower()]
+        self.save_session()
 
     def clear_cart(self):
         self.cart = []
+        self.save_session()
 
     def get_cart_contents(self):
         return self.cart
+
+    def save_session(self):
+        db = SessionLocal()
+        cart_json = json.dumps([{"name": p.name, "price": p.price, "description": p.description, "quantity": q}
+                                for p, q in self.cart])
+        session = db.query(UserSession).filter_by(payer_phone=self.payer_phone).first()
+        if session:
+            session.payer_name = self.payer_name
+            session.cart_data = cart_json
+            session.updated_at = datetime.utcnow()
+        else:
+            session = UserSession(
+                payer_name=self.payer_name,
+                payer_phone=self.payer_phone,
+                cart_data=cart_json
+            )
+            db.add(session)
+        db.commit()
+        db.close()
+
+    @staticmethod
+    def load_session(payer_phone):
+        db = SessionLocal()
+        session = db.query(UserSession).filter_by(payer_phone=payer_phone).first()
+        if session:
+            cart_items = json.loads(session.cart_data) if session.cart_data else []
+            cart = [(Product(item['name'], item['price'], item['description']), item['quantity']) for item in cart_items]
+            db.close()
+            return User(session.payer_name, session.payer_phone, cart)
+        db.close()
+        return None
 
 class Product:
     def __init__(self, name, price, description):
@@ -330,6 +393,62 @@ def send(answer, sender, phone_id):
 @app.route("/", methods=["GET", "POST"])
 def index():
     return render_template("connected.html")
+
+
+@app.route("/whatsapp", methods=["POST"])
+def whatsapp_webhook():
+    data = request.get_json()
+    message = data.get("message")
+    phone_number = data.get("phone_number")
+    name = data.get("name")
+
+    # Load or create user session
+    user = User.load_session(phone_number)
+    if not user:
+        user = User(payer_name=name, payer_phone=phone_number)
+        user.save_session()
+
+    # Example flow:
+    if message.lower() == "view cart":
+        cart_text = format_cart(user.cart)
+        send_message(phone_number, cart_text)
+        send_message(phone_number, "Please enter your delivery area:")
+        user.order_stage = "awaiting_area"
+        user.save_session()
+        return "ok"
+
+    elif user.order_stage == "awaiting_area":
+        area = message.strip()
+        delivery_fee = get_delivery_fee(area)
+        user.cart["Delivery"] = {"price": delivery_fee}
+        updated_cart = format_cart(user.cart)
+        send_message(phone_number, f"Updated cart:\n{updated_cart}")
+        user.order_stage = "ready_to_checkout"
+        user.save_session()
+        return "ok"
+
+    elif message.lower() == "ready_to_checkout":
+        send_message(phone_number, "Would you like to place another order? (yes/no)")
+        user.order_stage = "post_checkout"
+        user.save_session()
+        return "ok"
+
+    elif user.order_stage == "post_checkout":
+        if message.lower() == "yes":
+            categories = get_categories()
+            send_message(phone_number, "Please choose a category:\n" + categories)
+            user.order_stage = "choosing_category"
+        else:
+            send_message(phone_number, "Have a good day!")
+            user.reset_cart()
+        user.save_session()
+        return "ok"
+
+    # Default response
+    send_message(phone_number, "Welcome! Type 'view cart' or 'checkout' to begin.")
+    return "ok"
+
+
 
 
 @app.route("/webhook", methods=["GET", "POST"])
