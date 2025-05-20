@@ -373,17 +373,17 @@ def message_handler(data, phone_id):
         return "\n".join(lines) + f"\n\nTotal: R{total:.2f}"
 
     delivery_areas = {
-        "Harare Main": 240,
-        "Chitungwiza (includes Eyrecourt/Southlands/Stoneridge)": 300,
+        "Harare": 240,
+        "Chitungwiza": 300,
         "Mabvuku": 300,
         "Ruwa": 300,
         "Domboshava": 250,
-        "Southlea Park": 300,
-        "Southview Park": 300,
+        "Southlea": 300,
+        "Southview": 300,
         "Epworth": 300,
         "Mazoe": 300,
-        "Chinhoyi (Town only)": 350,
-        "Banket (Town only)": 350,
+        "Chinhoyi": 350,
+        "Banket": 350,
         "Rusape": 400,
         "Dema": 300
     }
