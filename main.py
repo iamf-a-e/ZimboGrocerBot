@@ -8,6 +8,7 @@ from flask import Flask, request, jsonify, render_template
 from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from training import instructions
 
 logging.basicConfig(level=logging.INFO)
 
@@ -21,6 +22,16 @@ owner_phone_4 = os.environ.get("OWNER_PHONE_4")
 
 app = Flask(__name__)
 user_states = {}
+
+def get_user_state(user_id):
+    if user_id not in user_states:
+        user_states[user_id] = {
+            "cart": [],
+            "history": [],
+            "order_completed": False
+        }
+    return user_states[user_id]
+    
 
 class User:
     def __init__(self, payer_name, payer_phone):
@@ -327,9 +338,44 @@ def send(answer, sender, phone_id):
     }
     requests.post(url, headers=headers, json=data)
 
-@app.route("/", methods=["GET", "POST"])
-def index():
-    return render_template("connected.html")
+@app.route("/bot", methods=["POST"])
+def bot():
+    incoming_msg = request.values.get("Body", "").strip()
+    user_id = request.values.get("From", "anonymous")  # Unique identifier per user
+
+    # Normalize input
+    user_input = incoming_msg.lower()
+
+    # Fetch or create user state
+    state = get_user_state(user_id)
+    cart = state["cart"]
+    history = state["history"]
+    order_completed = state["order_completed"]
+
+    response = MessagingResponse()
+    response_text = ""
+
+        # If not a command, ask Gemini to interpret user input
+        history.append(f"User: {user_input}")
+        prompt = f"""You are a shopping assistant bot. Help the user based on instructions.
+Instructions:
+{instructions}
+
+Cart: {cart}
+
+Conversation history:
+{history}
+
+User just said: {user_input}
+Respond accordingly.
+"""
+        gemini_response = model.generate_content(prompt)
+        bot_reply = gemini_response.text.strip()
+        response_text = bot_reply
+        history.append(f"Bot: {bot_reply}")
+
+    response.message(response_text)
+    return str(response)
 
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
@@ -365,12 +411,16 @@ def message_handler(data, phone_id):
         return "\n".join([f"{i+1}. {p.name} - R{p.price:.2f}: {p.description}" for i, p in enumerate(products)])
 
     def show_cart(user):
-        cart = user.get_cart_contents()
         if not cart:
             return "Your cart is empty."
-        lines = [f"{p.name} x{q} = R{p.price*q:.2f}" for p, q in cart]
-        total = sum(p.price*q for p, q in cart)
-        return "\n".join(lines) + f"\n\nTotal: R{total:.2f}"
+        cart_text = "Your Cart:\n"
+        total = 0
+        for item in cart:
+            subtotal = item["price"] * item["quantity"]
+            cart_text += f"{item['name']} x{item['quantity']} - ${subtotal:.2f}\n"
+            total += subtotal
+        cart_text += f"Total: ${total:.2f}"
+        return cart_text
 
     delivery_areas = {
         "Harare": 240,
