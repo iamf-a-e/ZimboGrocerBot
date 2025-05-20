@@ -441,10 +441,10 @@ def message_handler(data, phone_id):
             send("Please enter the receiver’s full name.", sender, phone_id)
             user_data["step"] = "get_receiver_name"
         elif prompt.lower() in ["no", "n"]:
-        send("What would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Add Item", sender, phone_id)
-        user_data["step"] = "post_add_menu"  # Transition back to the post-add menu
+            send("What would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Add Item", sender, phone_id)
+            user_data["step"] = "post_add_menu"  # Transition back to the post-add menu
         else:
-        send("Please respond with 'yes' or 'no'.", sender, phone_id)
+            send("Please respond with 'yes' or 'no'.", sender, phone_id)
 
 
     elif step == "post_add_menu":
