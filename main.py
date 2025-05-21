@@ -20,6 +20,19 @@ REDIS_URL = os.getenv('REDIS_URL')
 redis_client = redis.from_url(os.getenv('REDIS_URL'))
 
 try:
+    # If you have a REDIS_URL, use this:
+    if os.getenv('REDIS_URL'):
+        redis_client = redis.from_url(os.getenv('REDIS_URL'), decode_responses=True)
+    else:
+        redis_client = redis.Redis(
+            host=os.getenv('REDIS_HOST'),
+            port=int(os.getenv('REDIS_PORT', 6379)),
+            password=os.getenv('REDIS_PASSWORD'),
+            decode_responses=True,
+            # ssl=True  # Only if your Redis server supports SSL
+        )
+
+    # Test set/get
     redis_client.set('foo', 'bar')
     result = redis_client.get('foo')
     print(result)
