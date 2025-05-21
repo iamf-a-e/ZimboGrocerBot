@@ -466,8 +466,9 @@ def message_handler(data, phone_id):
             try:
                 qty = int(prompt)
                 prod = user_data["selected_product"]
-                send(f"{prod['name']} x{qty} added to cart! Restart the bot to continue.", sender, phone_id)
-                user_data["step"] = "done"
+                send("Item added to your cart.\nWhat would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Add Item", sender, phone_id)
+                user_data["step"] = "post_add_menu"
+
             except:
                 send("Please enter a valid number for quantity.", sender, phone_id)
 
