@@ -19,12 +19,12 @@ owner_phone_4 = os.environ.get("OWNER_PHONE_4")
 REDIS_URL = os.getenv('REDIS_URL')
 redis_client = redis.from_url(os.getenv('REDIS_URL'))
 
-# Set a value
-redis_client.set('foo', 'bar')
-
-# Get the value
-result = redis_client.get('foo')
-print(result)  # >>> bar
+try:
+    redis_client.set('foo', 'bar')
+    result = redis_client.get('foo')
+    print(result)
+except Exception as e:
+    print("Redis error:", e)
 
 # --- Chat Logic Classes (include all as in main.py) ---
 class User:
