@@ -3,9 +3,9 @@ import logging
 import requests
 import random
 import string
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, render_template
-from sqlalchemy import create_engine, Column, Integer, String, DateTime
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import google.generativeai as genai
@@ -15,10 +15,9 @@ import time
 from mimetypes import guess_type
 from urlextract import URLExtract
 
-
 logging.basicConfig(level=logging.INFO)
 
-db=False
+db = False
 wa_token = os.environ.get("WA_TOKEN") # WhatsApp API Key
 gen_api = os.environ.get("GEN_API")  # Gemini API Key
 owner_phone = os.environ.get("OWNER_PHONE") # Owner's phone number with country code
@@ -26,7 +25,7 @@ owner_phone_1 = os.environ.get("OWNER_PHONE_1")
 owner_phone_2 = os.environ.get("OWNER_PHONE_2")
 owner_phone_3 = os.environ.get("OWNER_PHONE_3")
 owner_phone_4 = os.environ.get("OWNER_PHONE_4")
-model_name="gemini-2.0-flash"
+model_name = "gemini-2.0-flash"
 
 app = Flask(__name__)
 user_states = {}
@@ -39,17 +38,17 @@ class CustomURLExtract(URLExtract):
 extractor = CustomURLExtract(limit=1)
 
 generation_config = {
-  "temperature": 1,
-  "top_p": 0.95,
-  "top_k": 0,
-  "max_output_tokens": 8192,
+    "temperature": 1,
+    "top_p": 0.95,
+    "top_k": 0,
+    "max_output_tokens": 8192,
 }
 
 safety_settings = [
-  {"category": "HARM_CATEGORY_HARASSMENT","threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-  {"category": "HARM_CATEGORY_HATE_SPEECH","threshold": "BLOCK_MEDIUM_AND_ABOVE"},  
-  {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-  {"category": "HARM_CATEGORY_DANGEROUS_CONTENT","threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},  
+    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
 ]
 
 model = genai.GenerativeModel(model_name=model_name,
@@ -57,7 +56,6 @@ model = genai.GenerativeModel(model_name=model_name,
                               safety_settings=safety_settings)
 
 convo = model.start_chat(history=[])
-
 
 class User:
     def __init__(self, payer_name, payer_phone):
@@ -127,7 +125,7 @@ class OrderSystem:
         pantry.add_product(Product("Peanut Butter 350ml", 19.99, "Peanut butter"))
         pantry.add_product(Product("Roller Meal 10kg- Zim Meal", 136.99, "Maize meal"))
         self.add_category(pantry)
-        
+
         # Beverages
         beverages = Category("Beverages")
         beverages.add_product(Product("Stella Teabags 100 Pack", 42.99, "Tea bags"))
@@ -158,7 +156,7 @@ class OrderSystem:
         beverages.add_product(Product("Mazoe Orange Crush 2L", 69.99, "Fruit drink"))
         beverages.add_product(Product("Joko Rooibos Tea Bags 80s", 84.99, "Rooibos tea"))
         self.add_category(beverages)
-                
+
         # Household
         household = Category("Household")
         household.add_product(Product("Sta Soft Lavender 2L", 59.99, "Fabric softener"))
@@ -339,7 +337,7 @@ class OrderSystem:
         baby_section.add_product(Product("Nan 2: Infant Formula Optipro 400g", 79.99, "Infant formula"))
         baby_section.add_product(Product("Nan 1: Infant Formula Optipro 400g", 79.99, "Infant formula"))
         self.add_category(baby_section)
-        
+
 
     def add_category(self, category):
         self.categories[category.name] = category
@@ -350,192 +348,30 @@ class OrderSystem:
     def list_products(self, category_name):
         return self.categories[category_name].products if category_name in self.categories else []
 
-def send(answer, sender, phone_id):
+def send(content, sender, phone_id, type="text"):
     url = f"https://graph.facebook.com/v19.0/{phone_id}/messages"
     headers = {
         'Authorization': f'Bearer {wa_token}',
         'Content-Type': 'application/json'
     }
-        data = {
+    data = {
         "messaging_product": "whatsapp",
         "to": sender,
         "type": type,
         type: {
-            body:content,
-            **({"caption":answer} if type!="text" else {})
-            },
+            "body": content,
+            **({"caption": content} if type != "text" else {})
         }
+    }
     response = requests.post(url, headers=headers, json=data)
     if db:
-        insert_chat("Bot",answer)
+        insert_chat("Bot", content)
     return response
 
 def remove(*file_paths):
     for file in file_paths:
         if os.path.exists(file):
             os.remove(file)
-        else:pass
-
-if db:
-    db_url=os.environ.get("DB_URL") # Database URL
-    engine=create_engine(db_url)
-    Session=sessionmaker(bind=engine)
-    Base=declarative_base()
-    scheduler = sched.scheduler(time.time, time.sleep)
-    report_time = datetime.now().replace(hour=22, minute=00, second=0, microsecond=0)
-
-    class Chat(Base):
-        __tablename__ = 'chats'
-        Chat_no = Column(Integer, primary_key=True)
-        Sender = Column(String(255), nullable=False)
-        Message = Column(String, nullable=False)
-        Chat_time = Column(DateTime, default=datetime.utcnow)
-
-    logging.info("Creating tables if they do not exist...")
-    Base.metadata.create_all(engine)
-
-    def insert_chat(sender, message):
-        logging.info("Inserting chat into database")
-        try:
-            session = Session()
-            chat = Chat(Sender=sender, Message=message)
-            session.add(chat)
-            session.commit()
-            logging.info("Chat inserted successfully")
-        except Exception as e:
-            logging.error(f"Error inserting chat: {e}")
-            session.rollback()
-        finally:
-            session.close()
-
-    def get_chats(sender):
-        try:
-            session = Session()
-            chats = session.query(Chat.Message).filter(Chat.Sender == sender).all()
-            return chats
-        except:pass
-        finally:
-            session.close()
-
-    def delete_old_chats():
-        try:
-            session = Session()
-            cutoff_date = datetime.now() - timedelta(days=14)
-            session.query(Chat).filter(Chat.Chat_time < cutoff_date).delete()
-            session.commit()
-            logging.info("Old chats deleted successfully")
-        except:
-            session.rollback()
-        finally:
-            session.close()
-
-    def create_report(phone_id):
-        logging.info("Creating report")
-        try:
-            today = datetime.today().strftime('%d-%m-%Y')
-            session = Session()
-            query = session.query(Chat.Message).filter(func.date_trunc('day', Chat.Chat_time) == today).all()
-            if query:
-                chats = '\n\n'.join(query)
-                send(chats, owner_phone, phone_id)
-        except Exception as e:
-            logging.error(f"Error creating report: {e}")
-        finally:
-            session.close()
-            
-else:pass
-    
-    try:
-        resp = requests.post(url, headers=headers, json=data)
-        if not resp.ok:
-            # Ask user to resend their message if delivery failed
-            error_msg = "Sorry, there was an error delivering your message. Please resend your last message."
-            requests.post(url, headers=headers, json={
-                "messaging_product": "whatsapp",
-                "to": sender,
-                "type": "text",
-                "text": {"body": error_msg}
-            })
-    except Exception as e:
-        # Handle network errors or unexpected issues
-        error_msg = "Sorry, there was a network error. Please resend your last message."
-        requests.post(url, headers=headers, json={
-            "messaging_product": "whatsapp",
-            "to": sender,
-            "type": "text",
-            "text": {"body": error_msg}
-        })
-
-if db:
-    db_url=os.environ.get("DB_URL") # Database URL
-    engine=create_engine(db_url)
-    Session=sessionmaker(bind=engine)
-    Base=declarative_base()
-    scheduler = sched.scheduler(time.time, time.sleep)
-    report_time = datetime.now().replace(hour=22, minute=00, second=0, microsecond=0)
-
-    class Chat(Base):
-        __tablename__ = 'chats'
-        Chat_no = Column(Integer, primary_key=True)
-        Sender = Column(String(255), nullable=False)
-        Message = Column(String, nullable=False)
-        Chat_time = Column(DateTime, default=datetime.utcnow)
-
-    logging.info("Creating tables if they do not exist...")
-    Base.metadata.create_all(engine)
-
-    def insert_chat(sender, message):
-        logging.info("Inserting chat into database")
-        try:
-            session = Session()
-            chat = Chat(Sender=sender, Message=message)
-            session.add(chat)
-            session.commit()
-            logging.info("Chat inserted successfully")
-        except Exception as e:
-            logging.error(f"Error inserting chat: {e}")
-            session.rollback()
-        finally:
-            session.close()
-
-    def get_chats(sender):
-        try:
-            session = Session()
-            chats = session.query(Chat.Message).filter(Chat.Sender == sender).all()
-            return chats
-        except:pass
-        finally:
-            session.close()
-
-    def delete_old_chats():
-        try:
-            session = Session()
-            cutoff_date = datetime.now() - timedelta(days=14)
-            session.query(Chat).filter(Chat.Chat_time < cutoff_date).delete()
-            session.commit()
-            logging.info("Old chats deleted successfully")
-        except:
-            session.rollback()
-        finally:
-            session.close()
-
-    def create_report(phone_id):
-        logging.info("Creating report")
-        try:
-            today = datetime.today().strftime('%d-%m-%Y')
-            session = Session()
-            query = session.query(Chat.Message).filter(func.date_trunc('day', Chat.Chat_time) == today).all()
-            if query:
-                chats = '\n\n'.join(query)
-                send(chats, owner_phone, phone_id)
-        except Exception as e:
-            logging.error(f"Error creating report: {e}")
-        finally:
-            session.close()
-            
-else:pass
-
-
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -565,7 +401,6 @@ def message_handler(data, phone_id):
     step = user_data["step"]
     order_system = user_data["order_system"]
     user = user_data.get("user")
-
 
     def list_categories():
         return "\n".join([f"{chr(65+i)}. {cat}" for i, cat in enumerate(order_system.list_categories())])
@@ -619,7 +454,6 @@ def message_handler(data, phone_id):
         else:
             send("Invalid category. Try again:\n" + list_categories(), sender, phone_id)
 
-
     elif step == "choose_product":
         try:
             index = int(prompt) - 1
@@ -634,7 +468,6 @@ def message_handler(data, phone_id):
         except:
             send("Please enter a valid number.", sender, phone_id)
 
-
     elif step == "ask_quantity":
         try:
             qty = int(prompt)
@@ -642,27 +475,13 @@ def message_handler(data, phone_id):
             user.add_to_cart(prod, qty)
             send("What would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Add Item", sender, phone_id)
             user_data["step"] = "post_add_menu"
-        
         except:
             send("Please enter a valid number for quantity.", sender, phone_id)
 
-    elif step == "ask_checkout":
-        if prompt.lower() in ["yes", "y"]:
-            send("Please enter the receiver’s full name.", sender, phone_id)
-            user_data["step"] = "get_receiver_name"
-        elif prompt.lower() in ["no", "n"]:
-            send("What would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Add Item", sender, phone_id)
-            user_data["step"] = "post_add_menu"  # Transition back to the post-add menu
-        else:
-            send("Please respond with 'yes' or 'no'.", sender, phone_id)
-
-
     elif step == "post_add_menu":
         if prompt.lower() == "view cart":
-            cart_message = show_cart(user)  # Show the updated cart
+            cart_message = show_cart(user)
             send(cart_message, sender, phone_id)
-
-            # Prompt for delivery area selection
             send("Please select your delivery area:\n" + "\n".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()]), sender, phone_id)
             user_data["step"] = "get_area"
         elif prompt.lower() == "clear cart":
@@ -678,10 +497,24 @@ def message_handler(data, phone_id):
             user_data["step"] = "post_add_menu"
         elif prompt.lower() in ["add", "add item", "add another", "add more"]:
             send("Sure! Here are the available categories:\n" + list_categories(), sender, phone_id)
-            user_data["step"] = "choose_category"  # Transition to category selection
+            user_data["step"] = "choose_category"
         else:
             send("Sorry, I didn't understand. You can:\n- View Cart\n- Clear Cart\n- Remove <item>\n- Add Item", sender, phone_id)
 
+    elif step == "get_area":
+        area = prompt.strip()
+        if area in delivery_areas:
+            user.checkout_data["delivery_area"] = area
+            fee = delivery_areas[area]
+            user.checkout_data["delivery_fee"] = fee
+            delivery_product = Product("__Delivery__", fee, f"Delivery to {area}")
+            user.add_to_cart(delivery_product, 1)
+            send(show_cart(user), sender, phone_id)
+            send("Would you like to checkout? (yes/no)", sender, phone_id)
+            user_data["step"] = "ask_checkout"
+        else:
+            area_list = "\n".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()])
+            send(f"Invalid area. Please choose from:\n{area_list}", sender, phone_id)
 
     elif step == "ask_checkout":
         if prompt.lower() in ["yes", "y"]:
@@ -692,27 +525,6 @@ def message_handler(data, phone_id):
             user_data["step"] = "post_add_menu"
         else:
             send("Please respond with 'yes' or 'no'.", sender, phone_id)
-
-        
-    
-    elif step == "get_area":
-        area = prompt.strip()
-        if area in delivery_areas:
-            user.checkout_data["delivery_area"] = area
-            fee = delivery_areas[area]
-            user.checkout_data["delivery_fee"] = fee
-
-            # Add delivery fee to cart
-            delivery_product = Product("__Delivery__", fee, f"Delivery to {area}")
-            user.add_to_cart(delivery_product, 1)
-
-            # Show updated cart with delivery fee
-            send(show_cart(user), sender, phone_id)
-            send("Would you like to checkout? (yes/no)", sender, phone_id)  # Prompt for checkout
-            user_data["step"] = "ask_checkout"
-        else:
-            area_list = "\n".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()])
-            send(f"Invalid area. Please choose from:\n{area_list}", sender, phone_id)
 
     elif step == "get_receiver_name":
         user.checkout_data["receiver_name"] = prompt
@@ -732,22 +544,39 @@ def message_handler(data, phone_id):
     elif step == "get_phone":
         user.checkout_data["phone"] = prompt
         details = user.checkout_data
-        confirm_message = f"Please confirm the details below:\n\nName: {details['receiver_name']}\nAddress: {details['address']}\nID: {details['id_number']}\nPhone: {details['phone']}\n\nAre these details correct? (yes/no)"
+        confirm_message = (f"Please confirm the details below:\n\n"
+            f"Name: {details['receiver_name']}\n"
+            f"Address: {details['address']}\n"
+            f"ID: {details['id_number']}\n"
+            f"Phone: {details['phone']}\n\n"
+            "Are these correct? (yes/no)")
         send(confirm_message, sender, phone_id)
         user_data["step"] = "confirm_details"
-    
+
     elif step == "confirm_details":
         if prompt.lower() in ["yes", "y"]:
             order_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
-            payment_info = f"Please make payment using one of the following options:\n\n1. Bank Transfer\nBank: ZimBank\nAccount: 123456789\nReference: {order_id}\n\n2. Pay at supermarkets: Shoprite, Checkers, Usave, Game, Spar, or Pick n Pay\n\n3. Pay via Mukuru\n\n4. Send via WorldRemit or Western Union\n\nInclude your Order ID as reference: {order_id}"
-            send(f"Order placed! 🛒\nOrder ID: {order_id}\n\n{show_cart(user)}\n\nReceiver: {user.checkout_data['receiver_name']}\nAddress: {user.checkout_data['address']}\nPhone: {user.checkout_data['phone']}\n\n{payment_info}", sender, phone_id)
+            payment_info = (
+                f"Please make payment using one of the following options:\n\n"
+                f"1. Bank Transfer\nBank: ZimBank\nAccount: 123456789\nReference: {order_id}\n\n"
+                f"2. Pay at supermarkets: Shoprite, OK, etc.\n"
+                f"Order ID: {order_id}"
+            )
+            send(
+                f"Order placed! 🛒\nOrder ID: {order_id}\n\n{show_cart(user)}\n\n"
+                f"Receiver: {user.checkout_data['receiver_name']}\n"
+                f"Address: {user.checkout_data['address']}\n"
+                f"Phone: {user.checkout_data['phone']}\n\n"
+                f"{payment_info}",
+                sender, phone_id
+            )
             user.clear_cart()
             user_data["step"] = "ask_place_another_order"
             send("Would you like to place another order? (yes/no)", sender, phone_id)
         else:
             send("Okay, let's correct the details. What's the receiver’s full name?", sender, phone_id)
             user_data["step"] = "get_receiver_name"
-    
+
     elif step == "ask_place_another_order":
         if prompt.lower() in ["yes", "y"]:
             send("Great! Please select a category:\n" + list_categories(), sender, phone_id)
@@ -755,8 +584,6 @@ def message_handler(data, phone_id):
         else:
             send("Okay. Have a good day! 😊", sender, phone_id)
             user_data["step"] = "ask_name"
-
-           
 
 if __name__ == "__main__":
     app.run(debug=True, port=8000)
