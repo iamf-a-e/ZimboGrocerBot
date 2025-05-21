@@ -16,6 +16,19 @@ import sched
 import time
 from mimetypes import guess_type
 from urlextract import URLExtract
+import threading
+state_lock = threading.Lock()
+
+def save_user_states(states):
+    with state_lock:
+        with open(USER_STATE_FILE, "wb") as f:
+            pickle.dump(states, f)
+def load_user_states():
+    with state_lock:
+        if os.path.exists(USER_STATE_FILE):
+            with open(USER_STATE_FILE, "rb") as f:
+                return pickle.load(f)
+        return {}
 
 logging.basicConfig(level=logging.INFO)
 
