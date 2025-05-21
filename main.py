@@ -353,6 +353,7 @@ class OrderSystem:
         baby_section.add_product(Product("Nan 1: Infant Formula Optipro 400g", 79.99, "Infant formula"))
         self.add_category(baby_section)
 
+
     def add_category(self, category):
         self.categories[category.name] = category
 
@@ -381,11 +382,6 @@ def send(content, sender, phone_id, type="text"):
     if db:
         insert_chat("Bot", content)
     return response
-
-def remove(*file_paths):
-    for file in file_paths:
-        if os.path.exists(file):
-            os.remove(file)
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -447,6 +443,7 @@ def message_handler(data, phone_id):
         "Dema": 300
     }
 
+    # Chat flow logic
     if step == "ask_name":
         send("Hello! Welcome to Zimbogrocer. What's your name?", sender, phone_id)
         user_data["step"] = "save_name"
@@ -458,15 +455,18 @@ def message_handler(data, phone_id):
         user_data["step"] = "choose_category"
 
     elif step == "choose_category":
-        idx = ord(prompt.upper()) - 65
-        categories = order_system.list_categories()
-        if 0 <= idx < len(categories):
-            cat = categories[idx]
-            user_data["selected_category"] = cat
-            send(f"Products in {cat}:\n{list_products(cat)}\nSelect a product by number.", sender, phone_id)
-            user_data["step"] = "choose_product"
+        if prompt.isalpha() and len(prompt) == 1:
+            idx = ord(prompt.upper()) - 65
+            categories = order_system.list_categories()
+            if 0 <= idx < len(categories):
+                cat = categories[idx]
+                user_data["selected_category"] = cat
+                send(f"Products in {cat}:\n{list_products(cat)}\nSelect a product by number.", sender, phone_id)
+                user_data["step"] = "choose_product"
+            else:
+                send("Invalid category. Try again:\n" + list_categories(), sender, phone_id)
         else:
-            send("Invalid category. Try again:\n" + list_categories(), sender, phone_id)
+            send("Please enter a valid category letter (e.g., A, B, C).", sender, phone_id)
 
     elif step == "choose_product":
         try:
@@ -480,17 +480,19 @@ def message_handler(data, phone_id):
             else:
                 send("Invalid product number. Try again.", sender, phone_id)
         except:
-            send("Please enter a valid number.", sender, phone_id)
+            send("Please enter a valid product number.", sender, phone_id)
 
     elif step == "ask_quantity":
         try:
             qty = int(prompt)
             prod = user_data["selected_product"]
+            if qty < 1:
+                raise ValueError
             user.add_to_cart(prod, qty)
-            send("What would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Add Item", sender, phone_id)
+            send("Item added to your cart.\nWhat would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Add Item", sender, phone_id)
             user_data["step"] = "post_add_menu"
         except:
-            send("Please enter a valid number for quantity.", sender, phone_id)
+            send("Please enter a valid number for quantity (e.g., 1, 2, 3).", sender, phone_id)
 
     elif step == "post_add_menu":
         if prompt.lower() == "view cart":
@@ -516,7 +518,7 @@ def message_handler(data, phone_id):
             send("Sorry, I didn't understand. You can:\n- View Cart\n- Clear Cart\n- Remove <item>\n- Add Item", sender, phone_id)
 
     elif step == "get_area":
-        area = prompt.strip()
+        area = prompt.strip().title()
         if area in delivery_areas:
             user.checkout_data["delivery_area"] = area
             fee = delivery_areas[area]
@@ -599,6 +601,7 @@ def message_handler(data, phone_id):
             send("Okay. Have a good day! 😊", sender, phone_id)
             user_data["step"] = "ask_name"
 
+    # Persist user states after each message
     user_states[sender] = user_data
     save_user_states(user_states)
 
