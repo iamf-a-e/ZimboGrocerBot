@@ -546,6 +546,13 @@ def message_handler(data, phone_id):
             send("Okay. Have a good day! 😊", sender, phone_id)
             user_data["step"] = "ask_name"
 
+        except Exception as e:
+        logging.exception(f"Uncaught exception in message_handler for sender {data.get('from')}: {e}")
+        try:
+            send("Can you resend your message?", data.get("from"), phone_id)
+        except Exception as send_error:
+            logging.exception(f"Failed to send fallback message: {send_error}"
+
            
 
 if __name__ == "__main__":
