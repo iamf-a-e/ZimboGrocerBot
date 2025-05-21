@@ -10,95 +10,29 @@ from flask import Flask, request, jsonify, render_template
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-import sched
-import time
-
-# --- External dependencies. You must provide these modules ---
-try:
-    import genai
-except ImportError:
-    print("Missing genai module. Please install or provide it.")
-
-try:
-    import instructions
-except ImportError:
-    # Dummy instructions object for placeholder
-    class instructions:
-        instructions = "Default instructions for Gemini AI."
-try:
-    from urlextract import URLExtract
-except ImportError:
-    # Dummy URLExtract for placeholder
-    class URLExtract:
-        def __init__(self, limit=1): pass
-        def find_urls(self, text): return []
-# -------------------------------------------------------------
 
 logging.basicConfig(level=logging.INFO)
 
 # Environment variables
-wa_token = os.environ.get("WA_TOKEN")  # WhatsApp API Key
+wa_token = os.environ.get("WA_TOKEN")
 gen_api = os.environ.get("GEN_API")  # Gemini API Key
-owner_phone = os.environ.get("OWNER_PHONE")  # Owner's phone number with country code
+owner_phone = os.environ.get("OWNER_PHONE") # Owner's phone number with country code
 owner_phone_1 = os.environ.get("OWNER_PHONE_1")
 owner_phone_2 = os.environ.get("OWNER_PHONE_2")
 owner_phone_3 = os.environ.get("OWNER_PHONE_3")
 owner_phone_4 = os.environ.get("OWNER_PHONE_4")
-db_url = os.environ.get("DB_URL")  # Database URL
 
+db_url = os.environ.get("DB_URL")
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 redis_client = redis.StrictRedis.from_url(REDIS_URL, decode_responses=True)
 
-# You must set this to your Gemini model name, e.g. "gemini-pro"
-model_name = os.environ.get("MODEL_NAME", "gemini-pro")  # fallback if not set
-db = bool(db_url)  # Enable DB only if URL exists
-
 app = Flask(__name__)
 
-# Initialize genai
-try:
-    genai.configure(api_key=gen_api)
-except Exception as e:
-    logging.warning(f"genai.configure failed: {e}")
-
-# Custom URL Extractor
-class CustomURLExtract(URLExtract):
-    def _get_cache_file_path(self):
-        cache_dir = "/tmp"
-        return os.path.join(cache_dir, "tlds-alpha-by-domain.txt")
-
-extractor = CustomURLExtract(limit=1)
-
-# Gemini Model Settings
-generation_config = {
-    "temperature": 1,
-    "top_p": 0.95,
-    "top_k": 0,
-    "max_output_tokens": 8192,
-}
-safety_settings = [
-    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-]
-
-try:
-    model = genai.GenerativeModel(model_name=model_name,
-                                  generation_config=generation_config,
-                                  safety_settings=safety_settings)
-    convo = model.start_chat(history=[])
-    convo.send_message(instructions.instructions)
-except Exception as e:
-    logging.warning(f"genai model setup failed: {e}")
-
-# --- Database setup ---
-if db:
+# --- Database setup (optional, for chat logging) ---
+if db_url:
     engine = create_engine(db_url)
     Session = sessionmaker(bind=engine)
     Base = declarative_base()
-    scheduler = sched.scheduler(time.time, time.sleep)
-    report_time = datetime.now().replace(hour=22, minute=0, second=0, microsecond=0)
 
     class Chat(Base):
         __tablename__ = 'chats'
@@ -106,65 +40,9 @@ if db:
         Sender = Column(String(255), nullable=False)
         Message = Column(String, nullable=False)
         Chat_time = Column(DateTime, default=datetime.utcnow)
-
-    logging.info("Creating tables if they do not exist...")
     Base.metadata.create_all(engine)
 
-    def insert_chat(sender, message):
-        logging.info("Inserting chat into database")
-        try:
-            session = Session()
-            chat = Chat(Sender=sender, Message=message)
-            session.add(chat)
-            session.commit()
-            logging.info("Chat inserted successfully")
-        except Exception as e:
-            logging.error(f"Error inserting chat: {e}")
-            session.rollback()
-        finally:
-            session.close()
-
-    def get_chats(sender):
-        try:
-            session = Session()
-            chats = session.query(Chat.Message).filter(Chat.Sender == sender).all()
-            return chats
-        except Exception as e:
-            logging.error(f"Error getting chats: {e}")
-            return []
-        finally:
-            session.close()
-
-    def delete_old_chats():
-        try:
-            session = Session()
-            cutoff_date = datetime.now() - timedelta(days=14)
-            session.query(Chat).filter(Chat.Chat_time < cutoff_date).delete()
-            session.commit()
-            logging.info("Old chats deleted successfully")
-        except Exception as e:
-            logging.error(f"Error deleting old chats: {e}")
-            session.rollback()
-        finally:
-            session.close()
-
-    def create_report(phone_id):
-        logging.info("Creating report")
-        try:
-            today = datetime.today().strftime('%Y-%m-%d')
-            session = Session()
-            query = session.query(Chat.Message).filter(func.date_trunc('day', Chat.Chat_time) == today).all()
-            if query:
-                chats = '\n\n'.join([msg.Message for msg in query])
-                send(chats, owner_phone, phone_id)
-        except Exception as e:
-            logging.error(f"Error creating report: {e}")
-        finally:
-            session.close()
-else:
-    pass
-
-# --- Chat Logic ---
+# --- Chat Logic Classes ---
 class User:
     def __init__(self, payer_name, payer_phone):
         self.payer_name = payer_name
@@ -446,7 +324,6 @@ class OrderSystem:
         baby_section.add_product(Product("Nan 1: Infant Formula Optipro 400g", 79.99, "Infant formula"))
         self.add_category(baby_section)
 
-
     def add_category(self, category):
         self.categories[category.name] = category
 
@@ -456,15 +333,13 @@ class OrderSystem:
     def list_products(self, category_name):
         return self.categories[category_name].products if category_name in self.categories else []
 
-# --- Redis User State Handling ---
+# --- User State Handling with Redis ---
 def get_user_state(sender):
     try:
         state_json = redis_client.get(f"user_state:{sender}")
         if state_json:
             state = json.loads(state_json)
-            # Restore order_system (always reconstructed)
             state["order_system"] = OrderSystem()
-            # Restore user object if present
             u = state.get("user")
             if u:
                 user = User(u['payer_name'], u['payer_phone'])
@@ -482,7 +357,6 @@ def get_user_state(sender):
 
 def save_user_state(sender, state):
     try:
-        # Serialize user object
         state_copy = dict(state)
         if "user" in state_copy and isinstance(state_copy["user"], User):
             user = state_copy["user"]
@@ -492,7 +366,6 @@ def save_user_state(sender, state):
                 "cart": [({"name": p.name, "price": p.price, "description": p.description}, q) for p, q in user.cart],
                 "checkout_data": user.checkout_data
             }
-        # Don't serialize order_system
         state_copy.pop("order_system", None)
         redis_client.set(f"user_state:{sender}", json.dumps(state_copy))
     except Exception as e:
@@ -524,7 +397,8 @@ def safe_send(answer, sender, phone_id):
     if not send(answer, sender, phone_id):
         send("Can you resend your message?", sender, phone_id)
 
-@app.route("/", methods=["GET", "POST"])
+# --- Flask Routes ---
+@app.route("/", methods=["GET"])
 def index():
     return render_template("connected.html")
 
@@ -537,7 +411,6 @@ def webhook():
         if mode == "subscribe" and token == "BOT":
             return challenge, 200
         return "Failed", 403
-
     elif request.method == "POST":
         try:
             entry = request.get_json().get("entry", [{}])[0]
@@ -752,11 +625,8 @@ def message_handler(data, phone_id):
                 order_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
                 payment_info = (
                     f"Please make payment using one of the following options:\n\n"
-                    "1. EFT\nBank: FNB\nName: Zimbogrocer (Pty) Ltd\nAccount: 62847698167\nBranch Code: 250655\nSwift Code: FIRNZAJJ\nReference: {order_id}\n\n"
-                    "2. Pay at supermarkets: Shoprite, Checkers, Usave OK, PicknPay, Game, Makro, SPAR using Mukuru wicode\n"
-                    "3. Mukuru Direct Transfer (Details upon request)\n"
-                    "4. World Remit Transfer (payment details provided upon request)\n"
-                    "5. Western Union (Details upon request)\n" 
+                    "1. Bank Transfer\nBank: ZimBank\nAccount: 123456789\nReference: {order_id}\n\n"
+                    "2. Pay at supermarkets: Shoprite, OK, PicknPay\n"
                 )
                 safe_send(
                     f"Order placed! 🛒\nOrder ID: {order_id}\n\n{show_cart(user)}\n\n"
@@ -792,4 +662,6 @@ def message_handler(data, phone_id):
             logging.exception(f"Failed to send fallback message: {send_error}")
 
 if __name__ == "__main__":
-    app.run(debug=True, port=8000)
+    import sys
+    port = int(os.environ.get("PORT", 8000))
+    app.run(debug=False, port=port, host="0.0.0.0")
