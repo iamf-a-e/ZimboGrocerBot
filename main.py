@@ -11,6 +11,13 @@ from sqlalchemy.orm import sessionmaker
 import sched
 import time
 
+import google.generativeai as genai
+import fitz
+from mimetypes import guess_type
+from urlextract import URLExtract
+from training import instructions
+
+
 # --- External dependencies. You must provide these modules ---
 try:
     import genai
