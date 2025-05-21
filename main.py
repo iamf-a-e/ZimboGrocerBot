@@ -11,15 +11,14 @@ from sqlalchemy.orm import sessionmaker
 import sched
 import time
 
-
 # --- External dependencies. You must provide these modules ---
 try:
-    import google.generativeai as genai
+    import genai
 except ImportError:
     print("Missing genai module. Please install or provide it.")
 
 try:
-    from training import instructions
+    import instructions
 except ImportError:
     # Dummy instructions object for placeholder
     class instructions:
@@ -44,8 +43,10 @@ owner_phone_2 = os.environ.get("OWNER_PHONE_2")
 owner_phone_3 = os.environ.get("OWNER_PHONE_3")
 owner_phone_4 = os.environ.get("OWNER_PHONE_4")
 db_url = os.environ.get("DB_URL")  # Database URL
-model_name="gemini-2.0-flash"  # fallback if not set
-db = False(db_url)  # Enable DB only if URL exists
+
+# You must set this to your Gemini model name, e.g. "gemini-pro"
+model_name = os.environ.get("MODEL_NAME", "gemini-pro")  # fallback if not set
+db = bool(db_url)  # Enable DB only if URL exists
 
 app = Flask(__name__)
 
@@ -467,9 +468,20 @@ def send(answer, sender, phone_id):
         "text": {"body": answer}
     }
     try:
-        requests.post(url, headers=headers, json=data)
+        resp = requests.post(url, headers=headers, json=data, timeout=10)
+        resp.raise_for_status()
+        logging.info(f"Message sent to {sender}: {answer}")
+        return True
     except Exception as e:
         logging.error(f"Error sending message: {e}")
+        # Do not try to send again here to avoid recursion
+        return False
+
+def safe_send(answer, sender, phone_id):
+    """Send a message, or ask the user to resend their message if sending fails."""
+    if not send(answer, sender, phone_id):
+        # Only send fallback message if the original message failed
+        send("Can you resend your message?", sender, phone_id)
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -498,201 +510,208 @@ def webhook():
             message_handler(data, phone_id)
             return jsonify({"status": "ok"}), 200
         except Exception as e:
-            logging.error(f"Webhook error: {e}")
+            logging.exception(f"Webhook error: {e}")
             return jsonify({"status": "error", "message": str(e)}), 400
 
 def message_handler(data, phone_id):
-    sender = data.get("from")
-    prompt = data.get("text", {}).get("body", "").strip()
-    if not sender:
-        return
-    user_data = user_states.setdefault(sender, {"step": "ask_name", "order_system": OrderSystem()})
-    step = user_data["step"]
-    order_system = user_data["order_system"]
-    user = user_data.get("user")
+    try:
+        sender = data.get("from")
+        prompt = data.get("text", {}).get("body", "").strip()
+        if not sender:
+            return
+        user_data = user_states.setdefault(sender, {"step": "ask_name", "order_system": OrderSystem()})
+        step = user_data["step"]
+        order_system = user_data["order_system"]
+        user = user_data.get("user")
 
-    def list_categories():
-        return "\n".join([f"{chr(65+i)}. {cat}" for i, cat in enumerate(order_system.list_categories())])
+        def list_categories():
+            return "\n".join([f"{chr(65+i)}. {cat}" for i, cat in enumerate(order_system.list_categories())])
 
-    def list_products(category_name):
-        products = order_system.list_products(category_name)
-        return "\n".join([f"{i+1}. {p.name} - R{p.price:.2f}: {p.description}" for i, p in enumerate(products)])
+        def list_products(category_name):
+            products = order_system.list_products(category_name)
+            return "\n".join([f"{i+1}. {p.name} - R{p.price:.2f}: {p.description}" for i, p in enumerate(products)])
 
-    def show_cart(user):
-        cart = user.get_cart_contents()
-        if not cart:
-            return "Your cart is empty."
-        lines = [f"{p.name} x{q} = R{p.price*q:.2f}" for p, q in cart]
-        total = sum(p.price*q for p, q in cart)
-        return "\n".join(lines) + f"\n\nTotal: R{total:.2f}"
+        def show_cart(user):
+            cart = user.get_cart_contents()
+            if not cart:
+                return "Your cart is empty."
+            lines = [f"{p.name} x{q} = R{p.price*q:.2f}" for p, q in cart]
+            total = sum(p.price*q for p, q in cart)
+            return "\n".join(lines) + f"\n\nTotal: R{total:.2f}"
 
-    delivery_areas = {
-        "Harare": 240,
-        "Chitungwiza": 300,
-        "Mabvuku": 300,
-        "Ruwa": 300,
-        "Domboshava": 250,
-        "Southlea": 300,
-        "Southview": 300,
-        "Epworth": 300,
-        "Mazoe": 300,
-        "Chinhoyi": 350,
-        "Banket": 350,
-        "Rusape": 400,
-        "Dema": 300
-    }
+        delivery_areas = {
+            "Harare": 240,
+            "Chitungwiza": 300,
+            "Mabvuku": 300,
+            "Ruwa": 300,
+            "Domboshava": 250,
+            "Southlea": 300,
+            "Southview": 300,
+            "Epworth": 300,
+            "Mazoe": 300,
+            "Chinhoyi": 350,
+            "Banket": 350,
+            "Rusape": 400,
+            "Dema": 300
+        }
 
-    if step == "ask_name":
-        send("Hello! Welcome to Zimbogrocer. What's your name?", sender, phone_id)
-        user_data["step"] = "save_name"
-    elif step == "save_name":
-        user = User(prompt.title(), sender)
-        user_data["user"] = user
-        send(f"Thanks {user.payer_name}! Please select a category:\n{list_categories()}", sender, phone_id)
-        user_data["step"] = "choose_category"
-    elif step == "choose_category":
-        idx = ord(prompt.upper()) - 65
-        categories = order_system.list_categories()
-        if 0 <= idx < len(categories):
-            cat = categories[idx]
-            user_data["selected_category"] = cat
-            send(f"Products in {cat}:\n{list_products(cat)}\nSelect a product by number.", sender, phone_id)
-            user_data["step"] = "choose_product"
-        else:
-            send("Invalid category. Try again:\n" + list_categories(), sender, phone_id)
-    elif step == "choose_product":
-        try:
-            index = int(prompt) - 1
-            cat = user_data["selected_category"]
-            products = order_system.list_products(cat)
-            if 0 <= index < len(products):
-                user_data["selected_product"] = products[index]
-                send(f"You selected {products[index].name}. How many would you like to add?", sender, phone_id)
-                user_data["step"] = "ask_quantity"
+        if step == "ask_name":
+            safe_send("Hello! Welcome to Zimbogrocer. What's your name?", sender, phone_id)
+            user_data["step"] = "save_name"
+        elif step == "save_name":
+            user = User(prompt.title(), sender)
+            user_data["user"] = user
+            safe_send(f"Thanks {user.payer_name}! Please select a category:\n{list_categories()}", sender, phone_id)
+            user_data["step"] = "choose_category"
+        elif step == "choose_category":
+            idx = ord(prompt.upper()) - 65
+            categories = order_system.list_categories()
+            if 0 <= idx < len(categories):
+                cat = categories[idx]
+                user_data["selected_category"] = cat
+                safe_send(f"Products in {cat}:\n{list_products(cat)}\nSelect a product by number.", sender, phone_id)
+                user_data["step"] = "choose_product"
             else:
-                send("Invalid product number. Try again.", sender, phone_id)
-        except Exception:
-            send("Please enter a valid number.", sender, phone_id)
-    elif step == "ask_quantity":
-        try:
-            qty = int(prompt)
-            prod = user_data["selected_product"]
-            user.add_to_cart(prod, qty)
-            send("What would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Add Item", sender, phone_id)
-            user_data["step"] = "post_add_menu"
-        except Exception:
-            send("Please enter a valid number for quantity.", sender, phone_id)
-    elif step == "post_add_menu":
-        if prompt.lower() == "view cart":
-            cart_message = show_cart(user)
-            send(cart_message, sender, phone_id)
-            
-            # If delivery fee already in cart, ask for checkout instead of delivery area
-            if any(p.name == "__Delivery__" for p, q in user.get_cart_contents()):
-                send("Would you like to checkout? (yes/no)", sender, phone_id)
+                safe_send("Invalid category. Try again:\n" + list_categories(), sender, phone_id)
+        elif step == "choose_product":
+            try:
+                index = int(prompt) - 1
+                cat = user_data["selected_category"]
+                products = order_system.list_products(cat)
+                if 0 <= index < len(products):
+                    user_data["selected_product"] = products[index]
+                    safe_send(f"You selected {products[index].name}. How many would you like to add?", sender, phone_id)
+                    user_data["step"] = "ask_quantity"
+                else:
+                    safe_send("Invalid product number. Try again.", sender, phone_id)
+            except Exception:
+                safe_send("Please enter a valid number.", sender, phone_id)
+        elif step == "ask_quantity":
+            try:
+                qty = int(prompt)
+                prod = user_data["selected_product"]
+                user.add_to_cart(prod, qty)
+                safe_send("What would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Add Item", sender, phone_id)
+                user_data["step"] = "post_add_menu"
+            except Exception:
+                safe_send("Please enter a valid number for quantity.", sender, phone_id)
+        elif step == "post_add_menu":
+            if prompt.lower() == "view cart":
+                cart_message = show_cart(user)
+                safe_send(cart_message, sender, phone_id)
+
+                # If delivery fee already in cart, ask for checkout instead of delivery area
+                if any(p.name == "__Delivery__" for p, q in user.get_cart_contents()):
+                    safe_send("Would you like to checkout? (yes/no)", sender, phone_id)
+                    user_data["step"] = "ask_checkout"
+                else:
+                    # Prompt for delivery area selection
+                    safe_send("Please select your delivery area:\n" + "\n".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()]), sender, phone_id)
+                    user_data["step"] = "get_area"
+
+            elif prompt.lower() == "clear cart":
+                user.clear_cart()
+                safe_send("Cart cleared.", sender, phone_id)
+                safe_send("What would you like to do next?\n- View cart\n- Add Item", sender, phone_id)
+                user_data["step"] = "post_add_menu"
+
+            elif prompt.lower().startswith("remove "):
+                item = prompt[7:].strip()
+                user.remove_from_cart(item)
+                safe_send(f"{item} removed from cart.\n{show_cart(user)}", sender, phone_id)
+                safe_send("What would you like to do next?\n- View cart\n- Add Item", sender, phone_id)
+                user_data["step"] = "post_add_menu"
+
+            elif prompt.lower() in ["add", "add item", "add another", "add more"]:
+                safe_send("Sure! Here are the available categories:\n" + list_categories(), sender, phone_id)
+                user_data["step"] = "choose_category"
+            else:
+                safe_send("Sorry, I didn't understand. You can:\n- View Cart\n- Clear Cart\n- Remove <item>\n- Add Item", sender, phone_id)
+
+        elif step == "get_area":
+            area = prompt.strip()
+            if area in delivery_areas:
+                user.checkout_data["delivery_area"] = area
+                fee = delivery_areas[area]
+                user.checkout_data["delivery_fee"] = fee
+                delivery_product = Product("__Delivery__", fee, f"Delivery to {area}")
+                user.add_to_cart(delivery_product, 1)
+                safe_send(show_cart(user), sender, phone_id)
+                safe_send("Would you like to checkout? (yes/no)", sender, phone_id)
                 user_data["step"] = "ask_checkout"
             else:
-                # Prompt for delivery area selection
-                send("Please select your delivery area:\n" + "\n".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()]), sender, phone_id)
-                user_data["step"] = "get_area"
-                
-        elif prompt.lower() == "clear cart":
-            user.clear_cart()
-            send("Cart cleared.", sender, phone_id)
-            send("What would you like to do next?\n- View cart\n- Add Item", sender, phone_id)
-            user_data["step"] = "post_add_menu"
-            
-        elif prompt.lower().startswith("remove "):
-            item = prompt[7:].strip()
-            user.remove_from_cart(item)
-            send(f"{item} removed from cart.\n{show_cart(user)}", sender, phone_id)
-            send("What would you like to do next?\n- View cart\n- Add Item", sender, phone_id)
-            user_data["step"] = "post_add_menu"
-            
-        elif prompt.lower() in ["add", "add item", "add another", "add more"]:
-            send("Sure! Here are the available categories:\n" + list_categories(), sender, phone_id)
-            user_data["step"] = "choose_category"
-        else:
-            send("Sorry, I didn't understand. You can:\n- View Cart\n- Clear Cart\n- Remove <item>\n- Add Item", sender, phone_id)
-    
-    elif step == "get_area":
-        area = prompt.strip()
-        if area in delivery_areas:
-            user.checkout_data["delivery_area"] = area
-            fee = delivery_areas[area]
-            user.checkout_data["delivery_fee"] = fee
-            delivery_product = Product("__Delivery__", fee, f"Delivery to {area}")
-            user.add_to_cart(delivery_product, 1)
-            send(show_cart(user), sender, phone_id)
-            send("Would you like to checkout? (yes/no)", sender, phone_id)
-            user_data["step"] = "ask_checkout"
-        else:
-            area_list = "\n".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()])
-            send(f"Invalid area. Please choose from:\n{area_list}", sender, phone_id)
-    elif step == "ask_checkout":
-        if prompt.lower() in ["yes", "y"]:
-            send("Please enter the receiver’s full name.", sender, phone_id)
-            user_data["step"] = "get_receiver_name"
-        elif prompt.lower() in ["no", "n"]:
-            send("What would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Add Item", sender, phone_id)
-            user_data["step"] = "post_add_menu"
-        else:
-            send("Please respond with 'yes' or 'no'.", sender, phone_id)
-    elif step == "get_receiver_name":
-        user.checkout_data["receiver_name"] = prompt
-        send("Enter the delivery address.", sender, phone_id)
-        user_data["step"] = "get_address"
-    elif step == "get_address":
-        user.checkout_data["address"] = prompt
-        send("Enter receiver’s ID number.", sender, phone_id)
-        user_data["step"] = "get_id"
-    elif step == "get_id":
-        user.checkout_data["id_number"] = prompt
-        send("Enter receiver’s phone number.", sender, phone_id)
-        user_data["step"] = "get_phone"
-    
-    elif step == "get_phone":
-        user.checkout_data["phone"] = prompt
-        details = user.checkout_data
-        confirm_message = (
-            f"Please confirm the details below:\n\n"
-            f"Name: {details['receiver_name']}\n"
-            f"Address: {details['address']}\n"
-            f"ID: {details['id_number']}\n"
-            f"Phone: {details['phone']}\n\n"
-            "Are these details correct? (yes/no)"
-        )
-        send(confirm_message, sender, phone_id)
-        user_data["step"] = "confirm_details"
-    elif step == "confirm_details":
-        if prompt.lower() in ["yes", "y"]:
-            order_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
-            payment_info = (
-                f"Please make payment using one of the following options:\n\n"
-                "1. Bank Transfer\nBank: ZimBank\nAccount: 123456789\nReference: {order_id}\n\n"
-                "2. Pay at supermarkets: Shoprite, OK, PicknPay\n"
+                area_list = "\n".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()])
+                safe_send(f"Invalid area. Please choose from:\n{area_list}", sender, phone_id)
+        elif step == "ask_checkout":
+            if prompt.lower() in ["yes", "y"]:
+                safe_send("Please enter the receiver’s full name.", sender, phone_id)
+                user_data["step"] = "get_receiver_name"
+            elif prompt.lower() in ["no", "n"]:
+                safe_send("What would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Add Item", sender, phone_id)
+                user_data["step"] = "post_add_menu"
+            else:
+                safe_send("Please respond with 'yes' or 'no'.", sender, phone_id)
+        elif step == "get_receiver_name":
+            user.checkout_data["receiver_name"] = prompt
+            safe_send("Enter the delivery address.", sender, phone_id)
+            user_data["step"] = "get_address"
+        elif step == "get_address":
+            user.checkout_data["address"] = prompt
+            safe_send("Enter receiver’s ID number.", sender, phone_id)
+            user_data["step"] = "get_id"
+        elif step == "get_id":
+            user.checkout_data["id_number"] = prompt
+            safe_send("Enter receiver’s phone number.", sender, phone_id)
+            user_data["step"] = "get_phone"
+
+        elif step == "get_phone":
+            user.checkout_data["phone"] = prompt
+            details = user.checkout_data
+            confirm_message = (
+                f"Please confirm the details below:\n\n"
+                f"Name: {details['receiver_name']}\n"
+                f"Address: {details['address']}\n"
+                f"ID: {details['id_number']}\n"
+                f"Phone: {details['phone']}\n\n"
+                "Are these details correct? (yes/no)"
             )
-            send(
-                f"Order placed! 🛒\nOrder ID: {order_id}\n\n{show_cart(user)}\n\n"
-                f"Receiver: {user.checkout_data['receiver_name']}\n"
-                f"Address: {user.checkout_data['address']}\n"
-                f"Phone: {user.checkout_data['phone']}\n\n"
-                f"{payment_info}",
-                sender, phone_id
-            )
-            user.clear_cart()
-            user_data["step"] = "ask_place_another_order"
-            send("Would you like to place another order? (yes/no)", sender, phone_id)
-        else:
-            send("Okay, let's correct the details. What's the receiver’s full name?", sender, phone_id)
-            user_data["step"] = "get_receiver_name"
-    elif step == "ask_place_another_order":
-        if prompt.lower() in ["yes", "y"]:
-            send("Great! Please select a category:\n" + list_categories(), sender, phone_id)
-            user_data["step"] = "choose_category"
-        else:
-            send("Okay. Have a good day! 😊", sender, phone_id)
-            user_data["step"] = "ask_name"
+            safe_send(confirm_message, sender, phone_id)
+            user_data["step"] = "confirm_details"
+        elif step == "confirm_details":
+            if prompt.lower() in ["yes", "y"]:
+                order_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+                payment_info = (
+                    f"Please make payment using one of the following options:\n\n"
+                    "1. Bank Transfer\nBank: ZimBank\nAccount: 123456789\nReference: {order_id}\n\n"
+                    "2. Pay at supermarkets: Shoprite, OK, PicknPay\n"
+                )
+                safe_send(
+                    f"Order placed! 🛒\nOrder ID: {order_id}\n\n{show_cart(user)}\n\n"
+                    f"Receiver: {user.checkout_data['receiver_name']}\n"
+                    f"Address: {user.checkout_data['address']}\n"
+                    f"Phone: {user.checkout_data['phone']}\n\n"
+                    f"{payment_info}",
+                    sender, phone_id
+                )
+                user.clear_cart()
+                user_data["step"] = "ask_place_another_order"
+                safe_send("Would you like to place another order? (yes/no)", sender, phone_id)
+            else:
+                safe_send("Okay, let's correct the details. What's the receiver’s full name?", sender, phone_id)
+                user_data["step"] = "get_receiver_name"
+        elif step == "ask_place_another_order":
+            if prompt.lower() in ["yes", "y"]:
+                safe_send("Great! Please select a category:\n" + list_categories(), sender, phone_id)
+                user_data["step"] = "choose_category"
+            else:
+                safe_send("Okay. Have a good day! 😊", sender, phone_id)
+                user_data["step"] = "ask_name"
+    except Exception as e:
+        logging.exception(f"Uncaught exception in message_handler for sender {data.get('from')}: {e}")
+        try:
+            send("Can you resend your message?", data.get("from"), phone_id)
+        except Exception as send_error:
+            logging.exception(f"Failed to send fallback message: {send_error}")
 
 if __name__ == "__main__":
     app.run(debug=True, port=8000)
