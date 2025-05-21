@@ -15,7 +15,20 @@ owner_phone_3 = os.environ.get("OWNER_PHONE_3")
 owner_phone_4 = os.environ.get("OWNER_PHONE_4")
 
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
-redis_client = redis.StrictRedis.from_url(REDIS_URL, decode_responses=True)
+redis_client = redis.StrictRedis(
+    host='redis-15161.c259.us-central1-2.gce.redns.redis-cloud.com',
+    port=15161,
+    username='default',
+    password='T@riel003311',
+    decode_responses=True
+)
+
+# Set a value
+redis_client.set('foo', 'bar')
+
+# Get the value
+result = redis_client.get('foo')
+print(result)  # >>> bar
 
 # --- Chat Logic Classes (include all as in main.py) ---
 class User:
