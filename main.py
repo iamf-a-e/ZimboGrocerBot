@@ -46,7 +46,7 @@ db_url = os.environ.get("DB_URL")  # Database URL
 
 # You must set this to your Gemini model name, e.g. "gemini-pro"
 model_name = os.environ.get("MODEL_NAME", "gemini-pro")  # fallback if not set
-db = TRUE(db_url)  # Enable DB only if URL exists
+db = true(db_url)  # Enable DB only if URL exists
 
 app = Flask(__name__)
 
