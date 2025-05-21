@@ -6,3 +6,4 @@ urlextract
 psycopg2-binary
 redis
 requests
+python-dotenv
