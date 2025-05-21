@@ -460,19 +460,22 @@ def message_handler(data, phone_id):
         send(f"Thanks {user.payer_name}! Please select a category:\n{list_categories()}", sender, phone_id)
         user_data["step"] = "choose_category"
 
-    elif step == "choose_category":
-        if prompt.isalpha() and len(prompt) == 1:
-            idx = ord(prompt.upper()) - 65
-            categories = order_system.list_categories()
-            if 0 <= idx < len(categories):
-                cat = categories[idx]
-                user_data["selected_category"] = cat
-                send(f"Products in {cat}:\n{list_products(cat)}\nSelect a product by number.", sender, phone_id)
-                user_data["step"] = "choose_product"
-            else:
-                send("Invalid category. Try again:\n" + list_categories(), sender, phone_id)
-        else:
-            send("Please enter a valid category letter (e.g., A, B, C).", sender, phone_id)
+elif step == "choose_category":
+    if not prompt or len(prompt) != 1 or not prompt.isalpha():
+        # Only prompt if this isn't the first time in this step
+        send("Please select a category by replying with the letter (e.g. A, B, C):\n" + list_categories(), sender, phone_id)
+        return
+    idx = ord(prompt.upper()) - 65
+    categories = order_system.list_categories()
+    if 0 <= idx < len(categories):
+        cat = categories[idx]
+        user_data["selected_category"] = cat
+        send(f"Products in {cat}:\n{list_products(cat)}\nSelect a product by number.", sender, phone_id)
+        user_data["step"] = "choose_product"
+    else:
+        send("Invalid category. Try again:\n" + list_categories(), sender, phone_id)
+    else:
+        send("Please enter a valid category letter (e.g., A, B, C).", sender, phone_id)
 
     elif step == "choose_product":
         try:
