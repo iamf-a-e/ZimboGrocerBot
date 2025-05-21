@@ -17,13 +17,7 @@ owner_phone_3 = os.environ.get("OWNER_PHONE_3")
 owner_phone_4 = os.environ.get("OWNER_PHONE_4")
 
 REDIS_URL = os.getenv('REDIS_URL')
-redis_client = redis.Redis(
-    host=os.getenv('REDIS_HOST'),
-    port=int(os.getenv('REDIS_PORT', 6379)),
-    password=os.getenv('REDIS_PASSWORD'),
-    decode_responses=True,
-    ssl=True
-)
+redis_client = redis.from_url(os.getenv('REDIS_URL'))
 
 # Set a value
 redis_client.set('foo', 'bar')
