@@ -1,8 +1,8 @@
 requests
-redis
 urlextract
 google-generativeai
 pymupdf
 sqlalchemy
 urlextract
 psycopg2-binary
+Flask
