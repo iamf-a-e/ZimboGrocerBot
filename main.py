@@ -3,6 +3,8 @@ import logging
 import requests
 import random
 import string
+import pickle
+
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, render_template
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, func
@@ -28,7 +30,20 @@ owner_phone_4 = os.environ.get("OWNER_PHONE_4")
 model_name = "gemini-2.0-flash"
 
 app = Flask(__name__)
-user_states = {}
+
+USER_STATE_FILE = "user_states.pkl"
+
+def load_user_states():
+    if os.path.exists(USER_STATE_FILE):
+        with open(USER_STATE_FILE, "rb") as f:
+            return pickle.load(f)
+    return {}
+
+def save_user_states(states):
+    with open(USER_STATE_FILE, "wb") as f:
+        pickle.dump(states, f)
+
+user_states = load_user_states()
 
 class CustomURLExtract(URLExtract):
     def _get_cache_file_path(self):
@@ -179,7 +194,7 @@ class OrderSystem:
         household.add_product(Product("Poppin Fresh Toilet Cleaner 500ml", 34.99, "Toilet cleaner"))
         household.add_product(Product("Poppin Fresh Multi-Purpose Cleaner", 25.99, "Multi-purpose cleaner"))
         self.add_category(household)
-        
+
         # Personal Care
         personal_care = Category("Personal Care")
         personal_care.add_product(Product("Softex Toilet Tissue 1-Ply 4s", 39.99, "Toilet tissue"))
@@ -254,7 +269,7 @@ class OrderSystem:
         personal_care.add_product(Product("Ingram's Camphor Moisture Plus 500ml", 59.99, "Moisturizing cream"))
         personal_care.add_product(Product("Disposable Face Mask 50s", 39.99, "Face masks"))
         self.add_category(personal_care)
-        
+
         # Snacks and Sweets
         snacks = Category("Snacks and Sweets")
         snacks.add_product(Product("Jena Maputi 15pack", 23.99, "Popcorn"))
@@ -278,7 +293,7 @@ class OrderSystem:
         snacks.add_product(Product("Charhons Biscuits 2kg", 99.99, "Biscuits"))
         snacks.add_product(Product("Zap Nax Cheese and Onion 100g", 3.99, "Snacks"))
         self.add_category(snacks)
-        
+
         # Fresh Groceries
         fresh = Category("Fresh Groceries")
         fresh.add_product(Product("Economy Steak on Bone Beef Cuts 1kg", 147.99, "Fresh beef"))
@@ -297,7 +312,7 @@ class OrderSystem:
         fresh.add_product(Product("Irvines Mixed Chicken Cuts 2kg", 179.99, "Mixed chicken cuts"))
         fresh.add_product(Product("Dairibord Yoghurt 150ml", 15.99, "Yoghurt"))
         self.add_category(fresh)
-        
+
         # Stationery
         stationery = Category("Stationery")
         stationery.add_product(Product("Plastic Cover 3 Meter Roll", 7.99, "Plastic cover"))
@@ -318,7 +333,7 @@ class OrderSystem:
         stationery.add_product(Product("Sharp Scientific Calculator", 319.99, "Scientific calculator"))
         stationery.add_product(Product("32 Page Newsprint Plain Exercise Book (10 Pack)", 36.99, "Plain exercise books"))
         self.add_category(stationery)
-        
+
         # Baby Section
         baby_section = Category("Baby Section")
         baby_section.add_product(Product("Huggies Dry Comfort Jumbo Size 5 (44s)", 299.99, "Diapers"))
@@ -337,7 +352,6 @@ class OrderSystem:
         baby_section.add_product(Product("Nan 2: Infant Formula Optipro 400g", 79.99, "Infant formula"))
         baby_section.add_product(Product("Nan 1: Infant Formula Optipro 400g", 79.99, "Infant formula"))
         self.add_category(baby_section)
-
 
     def add_category(self, category):
         self.categories[category.name] = category
@@ -584,6 +598,9 @@ def message_handler(data, phone_id):
         else:
             send("Okay. Have a good day! 😊", sender, phone_id)
             user_data["step"] = "ask_name"
+
+    user_states[sender] = user_data
+    save_user_states(user_states)
 
 if __name__ == "__main__":
     app.run(debug=True, port=8000)
