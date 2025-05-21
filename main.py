@@ -10,6 +10,7 @@ from flask import Flask, request, jsonify, render_template
 from sqlalchemy import create_engine, Column, String, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from models import Base, User, Product, CartItem, Order, OrderItem
 
 
 # Logging
@@ -421,59 +422,59 @@ def message_handler(data, phone_id):
     step = user_data["step"]
     order_system = user_data["order_system"]
     user = user_data.get("user")
+    db = SessionLocal()
 
-    def list_categories():
-        return "\n".join([f"{chr(65+i)}. {cat}" for i, cat in enumerate(order_system.list_categories())])
+    try:
+        step = user_data["step"]
 
-    def list_products(category_name):
-        products = order_system.list_products(category_name)
-        return "\n".join([f"{i+1}. {p.name} - R{p.price:.2f}: {p.description}" for i, p in enumerate(products)])
+        if step == "ask_name":
+            send("Hello! Welcome to Zimbogrocer. What's your name?", sender, phone_id)
+            user_data["step"] = "save_name"
 
-    if step == "ask_name":
-        send("Hello! Welcome to Zimbogrocer. What's your name?", sender, phone_id)
-        user_data["step"] = "save_name"
+        elif step == "save_name":
+            name = prompt.title()
+            db_user = db.query(User).filter_by(phone=sender).first()
+            if not db_user:
+                db_user = User(name=name, phone=sender)
+                db.add(db_user)
+                db.commit()
+            user_data["user"] = db_user
+            send(f"Thanks {name}! Please select a category:\n{list_categories()}", sender, phone_id)
+            user_data["step"] = "choose_category"
 
-    elif step == "save_name":
-        user = User(prompt.title(), sender)
-        user_data["user"] = user
-        send(f"Thanks {user.payer_name}! Please select a category:\n{list_categories()}", sender, phone_id)
-        user_data["step"] = "choose_category"
-
-    elif step == "choose_category":
-        idx = ord(prompt.upper()) - 65
-        categories = order_system.list_categories()
-        if 0 <= idx < len(categories):
-            cat = categories[idx]
-            user_data["selected_category"] = cat
-            send(f"Products in {cat}:\n{list_products(cat)}\nSelect a product by number.", sender, phone_id)
-            user_data["step"] = "choose_product"
-        else:
-            send("Invalid category. Try again:\n" + list_categories(), sender, phone_id)
-
-    elif step == "choose_product":
-        try:
-            index = int(prompt) - 1
-            cat = user_data["selected_category"]
-            products = order_system.list_products(cat)
-            if 0 <= index < len(products):
-                user_data["selected_product"] = products[index]
-                send(f"You selected {products[index].name}. How many would you like to add?", sender, phone_id)
-                user_data["step"] = "ask_quantity"
+        elif step == "choose_category":
+            idx = ord(prompt.upper()) - 65
+            categories = ["Beverages", "Fresh Groceries"]
+            if 0 <= idx < len(categories):
+                cat = categories[idx]
+                user_data["selected_category"] = chr(65 + idx)
+                send(f"Products in {cat}:\n{list_products(chr(65 + idx))}\nSelect a product by number.", sender, phone_id)
+                user_data["step"] = "choose_product"
             else:
-                send("Invalid product number. Try again.", sender, phone_id)
-        except:
-            send("Please enter a valid number.", sender, phone_id)
+                send("Invalid category. Try again:\n" + list_categories(), sender, phone_id)
 
-    elif step == "ask_quantity":
-        try:
-            qty = int(prompt)
-            prod = user_data["selected_product"]
-            user.add_to_cart(prod, qty)
-            send("Added to cart! Restart the bot to continue.", sender, phone_id)
-        except:
-            send("Please enter a valid number for quantity.", sender, phone_id)
+        elif step == "choose_product":
+            try:
+                index = int(prompt)
+                user_data["selected_product"] = {"name": "Sample Product", "price": 50.0}
+                send("You selected Sample Product. How many would you like to add?", sender, phone_id)
+                user_data["step"] = "ask_quantity"
+            except:
+                send("Please enter a valid number.", sender, phone_id)
 
-    save_user_state(sender, user_data)
+        elif step == "ask_quantity":
+            try:
+                qty = int(prompt)
+                prod = user_data["selected_product"]
+                send(f"{prod['name']} x{qty} added to cart! Restart the bot to continue.", sender, phone_id)
+                user_data["step"] = "done"
+            except:
+                send("Please enter a valid number for quantity.", sender, phone_id)
+
+        save_user_state(sender, user_data)
+
+    finally:
+        db.close()
 
 if __name__ == "__main__":
     Base.metadata.create_all(bind=engine)
