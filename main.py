@@ -11,9 +11,6 @@ from sqlalchemy.orm import sessionmaker
 import sched
 import time
 
-import fitz
-from mimetypes import guess_type
-
 
 # --- External dependencies. You must provide these modules ---
 try:
