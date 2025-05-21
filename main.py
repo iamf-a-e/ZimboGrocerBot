@@ -467,13 +467,13 @@ elif step == "choose_category":
         return
     idx = ord(prompt.upper()) - 65
     categories = order_system.list_categories()
-    if 0 <= idx < len(categories):
-        cat = categories[idx]
-        user_data["selected_category"] = cat
-        send(f"Products in {cat}:\n{list_products(cat)}\nSelect a product by number.", sender, phone_id)
-        user_data["step"] = "choose_product"
-    else:
-        send("Invalid category. Try again:\n" + list_categories(), sender, phone_id)
+        if 0 <= idx < len(categories):
+            cat = categories[idx]
+            user_data["selected_category"] = cat
+            send(f"Products in {cat}:\n{list_products(cat)}\nSelect a product by number.", sender, phone_id)
+            user_data["step"] = "choose_product"
+        else:
+            send("Invalid category. Try again:\n" + list_categories(), sender, phone_id)
     else:
         send("Please enter a valid category letter (e.g., A, B, C).", sender, phone_id)
 
