@@ -6,6 +6,8 @@ import string
 import redis
 import json
 from datetime import datetime
+from dotenv import load_dotenv
+load_dotenv()
 
 wa_token = os.environ.get("WA_TOKEN")
 owner_phone = os.environ.get("OWNER_PHONE") # Owner's phone number with country code
