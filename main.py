@@ -7,20 +7,19 @@ import redis
 import json
 from datetime import datetime
 from dotenv import load_dotenv
+
 load_dotenv()
 
 wa_token = os.environ.get("WA_TOKEN")
-owner_phone = os.environ.get("OWNER_PHONE") # Owner's phone number with country code
+owner_phone = os.environ.get("OWNER_PHONE")  # Owner's phone number with country code
 owner_phone_1 = os.environ.get("OWNER_PHONE_1")
 owner_phone_2 = os.environ.get("OWNER_PHONE_2")
 owner_phone_3 = os.environ.get("OWNER_PHONE_3")
 owner_phone_4 = os.environ.get("OWNER_PHONE_4")
 
-REDIS_URL = os.getenv('REDIS_URL')
-redis_client = redis.from_url(os.getenv('REDIS_URL'))
-
+# --- Robust Redis Connection ---
+redis_client = None
 try:
-    # If you have a REDIS_URL, use this:
     if os.getenv('REDIS_URL'):
         redis_client = redis.from_url(os.getenv('REDIS_URL'), decode_responses=True)
     else:
@@ -29,17 +28,27 @@ try:
             port=int(os.getenv('REDIS_PORT', 6379)),
             password=os.getenv('REDIS_PASSWORD'),
             decode_responses=True,
-            # ssl=True  # Only if your Redis server supports SSL
+            # ssl=True  # Uncomment ONLY if your Redis server supports SSL
         )
-
-    # Test set/get
-    redis_client.set('foo', 'bar')
-    result = redis_client.get('foo')
-    print(result)
+    # Test connection
+    redis_client.ping()
 except Exception as e:
-    print("Redis error:", e)
+    print("Redis error during connection:", e)
+    redis_client = None
 
-# --- Chat Logic Classes (include all as in main.py) ---
+# Example usage
+if redis_client:
+    try:
+        redis_client.set('foo', 'bar')
+        result = redis_client.get('foo')
+        print(result)  # >>> bar
+    except Exception as e:
+        print("Redis error:", e)
+else:
+    print("Redis client not initialized due to connection error.")
+
+# --- Chat Logic Classes ---
+
 class User:
     def __init__(self, payer_name, payer_phone):
         self.payer_name = payer_name
@@ -332,6 +341,8 @@ class OrderSystem:
         return self.categories[category_name].products if category_name in self.categories else []
 
 def get_user_state(sender):
+    if not redis_client:
+        return {"step": "ask_name", "order_system": OrderSystem()}
     try:
         state_json = redis_client.get(f"user_state:{sender}")
         if state_json:
@@ -349,9 +360,12 @@ def get_user_state(sender):
         else:
             return {"step": "ask_name", "order_system": OrderSystem()}
     except Exception as e:
+        print("Redis error (get_user_state):", e)
         return {"step": "ask_name", "order_system": OrderSystem()}
 
 def save_user_state(sender, state):
+    if not redis_client:
+        return
     try:
         state_copy = dict(state)
         if "user" in state_copy and isinstance(state_copy["user"], User):
@@ -365,7 +379,18 @@ def save_user_state(sender, state):
         state_copy.pop("order_system", None)
         redis_client.set(f"user_state:{sender}", json.dumps(state_copy))
     except Exception as e:
-        pass
+        print("Redis error (save_user_state):", e)
+        
+
+    def add_category(self, category):
+        self.categories[category.name] = category
+
+    def list_categories(self):
+        return list(self.categories.keys())
+
+    def list_products(self, category_name):
+        return self.categories[category_name].products if category_name in self.categories else []
+
 
 def send(answer, sender, phone_id):
     url = f"https://graph.facebook.com/v19.0/{phone_id}/messages"
