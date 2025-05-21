@@ -140,7 +140,7 @@ class OrderSystem:
         pantry.add_product(Product("Peanut Butter 350ml", 19.99, "Peanut butter"))
         pantry.add_product(Product("Roller Meal 10kg- Zim Meal", 136.99, "Maize meal"))
         self.add_category(pantry)
-
+        
         # Beverages
         beverages = Category("Beverages")
         beverages.add_product(Product("Stella Teabags 100 Pack", 42.99, "Tea bags"))
@@ -171,7 +171,7 @@ class OrderSystem:
         beverages.add_product(Product("Mazoe Orange Crush 2L", 69.99, "Fruit drink"))
         beverages.add_product(Product("Joko Rooibos Tea Bags 80s", 84.99, "Rooibos tea"))
         self.add_category(beverages)
-
+                
         # Household
         household = Category("Household")
         household.add_product(Product("Sta Soft Lavender 2L", 59.99, "Fabric softener"))
@@ -194,7 +194,7 @@ class OrderSystem:
         household.add_product(Product("Poppin Fresh Toilet Cleaner 500ml", 34.99, "Toilet cleaner"))
         household.add_product(Product("Poppin Fresh Multi-Purpose Cleaner", 25.99, "Multi-purpose cleaner"))
         self.add_category(household)
-
+        
         # Personal Care
         personal_care = Category("Personal Care")
         personal_care.add_product(Product("Softex Toilet Tissue 1-Ply 4s", 39.99, "Toilet tissue"))
@@ -269,7 +269,7 @@ class OrderSystem:
         personal_care.add_product(Product("Ingram's Camphor Moisture Plus 500ml", 59.99, "Moisturizing cream"))
         personal_care.add_product(Product("Disposable Face Mask 50s", 39.99, "Face masks"))
         self.add_category(personal_care)
-
+        
         # Snacks and Sweets
         snacks = Category("Snacks and Sweets")
         snacks.add_product(Product("Jena Maputi 15pack", 23.99, "Popcorn"))
@@ -293,7 +293,7 @@ class OrderSystem:
         snacks.add_product(Product("Charhons Biscuits 2kg", 99.99, "Biscuits"))
         snacks.add_product(Product("Zap Nax Cheese and Onion 100g", 3.99, "Snacks"))
         self.add_category(snacks)
-
+        
         # Fresh Groceries
         fresh = Category("Fresh Groceries")
         fresh.add_product(Product("Economy Steak on Bone Beef Cuts 1kg", 147.99, "Fresh beef"))
@@ -312,7 +312,7 @@ class OrderSystem:
         fresh.add_product(Product("Irvines Mixed Chicken Cuts 2kg", 179.99, "Mixed chicken cuts"))
         fresh.add_product(Product("Dairibord Yoghurt 150ml", 15.99, "Yoghurt"))
         self.add_category(fresh)
-
+        
         # Stationery
         stationery = Category("Stationery")
         stationery.add_product(Product("Plastic Cover 3 Meter Roll", 7.99, "Plastic cover"))
@@ -333,7 +333,7 @@ class OrderSystem:
         stationery.add_product(Product("Sharp Scientific Calculator", 319.99, "Scientific calculator"))
         stationery.add_product(Product("32 Page Newsprint Plain Exercise Book (10 Pack)", 36.99, "Plain exercise books"))
         self.add_category(stationery)
-
+        
         # Baby Section
         baby_section = Category("Baby Section")
         baby_section.add_product(Product("Huggies Dry Comfort Jumbo Size 5 (44s)", 299.99, "Diapers"))
@@ -378,10 +378,15 @@ def send(content, sender, phone_id, type="text"):
             **({"caption": content} if type != "text" else {})
         }
     }
-    response = requests.post(url, headers=headers, json=data)
-    if db:
-        insert_chat("Bot", content)
-    return response
+    try:
+        requests.post(url, headers=headers, json=data, timeout=10)
+    except Exception:
+        pass
+
+def remove(*file_paths):
+    for file in file_paths:
+        if os.path.exists(file):
+            os.remove(file)
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -443,7 +448,8 @@ def message_handler(data, phone_id):
         "Dema": 300
     }
 
-    # Chat flow logic
+    # ---- FIX: Only ONE send per prompt, combine messages where needed ----
+
     if step == "ask_name":
         send("Hello! Welcome to Zimbogrocer. What's your name?", sender, phone_id)
         user_data["step"] = "save_name"
@@ -497,19 +503,17 @@ def message_handler(data, phone_id):
     elif step == "post_add_menu":
         if prompt.lower() == "view cart":
             cart_message = show_cart(user)
-            send(cart_message, sender, phone_id)
-            send("Please select your delivery area:\n" + "\n".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()]), sender, phone_id)
+            # FIX: Combine cart and next prompt into one message
+            send(cart_message + "\n\nPlease select your delivery area:\n" + "\n".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()]), sender, phone_id)
             user_data["step"] = "get_area"
         elif prompt.lower() == "clear cart":
             user.clear_cart()
-            send("Cart cleared.", sender, phone_id)
-            send("What would you like to do next?\n- View cart\n- Add Item", sender, phone_id)
+            send("Cart cleared.\nWhat would you like to do next?\n- View cart\n- Add Item", sender, phone_id)
             user_data["step"] = "post_add_menu"
         elif prompt.lower().startswith("remove "):
             item = prompt[7:].strip()
             user.remove_from_cart(item)
-            send(f"{item} removed from cart.\n{show_cart(user)}", sender, phone_id)
-            send("What would you like to do next?\n- View cart\n- Add Item", sender, phone_id)
+            send(f"{item} removed from cart.\n{show_cart(user)}\nWhat would you like to do next?\n- View cart\n- Add Item", sender, phone_id)
             user_data["step"] = "post_add_menu"
         elif prompt.lower() in ["add", "add item", "add another", "add more"]:
             send("Sure! Here are the available categories:\n" + list_categories(), sender, phone_id)
@@ -525,8 +529,7 @@ def message_handler(data, phone_id):
             user.checkout_data["delivery_fee"] = fee
             delivery_product = Product("__Delivery__", fee, f"Delivery to {area}")
             user.add_to_cart(delivery_product, 1)
-            send(show_cart(user), sender, phone_id)
-            send("Would you like to checkout? (yes/no)", sender, phone_id)
+            send(show_cart(user) + "\nWould you like to checkout? (yes/no)", sender, phone_id)
             user_data["step"] = "ask_checkout"
         else:
             area_list = "\n".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()])
@@ -583,12 +586,10 @@ def message_handler(data, phone_id):
                 f"Receiver: {user.checkout_data['receiver_name']}\n"
                 f"Address: {user.checkout_data['address']}\n"
                 f"Phone: {user.checkout_data['phone']}\n\n"
-                f"{payment_info}",
-                sender, phone_id
+                f"{payment_info}\nWould you like to place another order? (yes/no)", sender, phone_id
             )
             user.clear_cart()
             user_data["step"] = "ask_place_another_order"
-            send("Would you like to place another order? (yes/no)", sender, phone_id)
         else:
             send("Okay, let's correct the details. What's the receiver’s full name?", sender, phone_id)
             user_data["step"] = "get_receiver_name"
