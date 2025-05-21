@@ -3,6 +3,8 @@ import logging
 import requests
 import random
 import string
+import redis
+import json
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, render_template
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, func
@@ -10,8 +12,6 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import sched
 import time
-import redis
-import json
 
 # --- External dependencies. You must provide these modules ---
 try:
@@ -45,6 +45,9 @@ owner_phone_2 = os.environ.get("OWNER_PHONE_2")
 owner_phone_3 = os.environ.get("OWNER_PHONE_3")
 owner_phone_4 = os.environ.get("OWNER_PHONE_4")
 db_url = os.environ.get("DB_URL")  # Database URL
+
+REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+redis_client = redis.StrictRedis.from_url(REDIS_URL, decode_responses=True)
 
 # You must set this to your Gemini model name, e.g. "gemini-pro"
 model_name = os.environ.get("MODEL_NAME", "gemini-pro")  # fallback if not set
@@ -160,9 +163,6 @@ if db:
             session.close()
 else:
     pass
-
-# User session state (should be persistent or at least per-process in production)
-user_states = {}
 
 # --- Chat Logic ---
 class User:
@@ -456,6 +456,48 @@ class OrderSystem:
     def list_products(self, category_name):
         return self.categories[category_name].products if category_name in self.categories else []
 
+# --- Redis User State Handling ---
+def get_user_state(sender):
+    try:
+        state_json = redis_client.get(f"user_state:{sender}")
+        if state_json:
+            state = json.loads(state_json)
+            # Restore order_system (always reconstructed)
+            state["order_system"] = OrderSystem()
+            # Restore user object if present
+            u = state.get("user")
+            if u:
+                user = User(u['payer_name'], u['payer_phone'])
+                user.cart = [(Product(p['name'], p['price'], p['description']), q) for p, q in u.get('cart',[])]
+                user.checkout_data = u.get('checkout_data', {})
+                state["user"] = user
+            else:
+                state["user"] = None
+            return state
+        else:
+            return {"step": "ask_name", "order_system": OrderSystem()}
+    except Exception as e:
+        logging.exception(f"Error loading user state for {sender}: {e}")
+        return {"step": "ask_name", "order_system": OrderSystem()}
+
+def save_user_state(sender, state):
+    try:
+        # Serialize user object
+        state_copy = dict(state)
+        if "user" in state_copy and isinstance(state_copy["user"], User):
+            user = state_copy["user"]
+            state_copy["user"] = {
+                "payer_name": user.payer_name,
+                "payer_phone": user.payer_phone,
+                "cart": [({"name": p.name, "price": p.price, "description": p.description}, q) for p, q in user.cart],
+                "checkout_data": user.checkout_data
+            }
+        # Don't serialize order_system
+        state_copy.pop("order_system", None)
+        redis_client.set(f"user_state:{sender}", json.dumps(state_copy))
+    except Exception as e:
+        logging.exception(f"Error saving user state for {sender}: {e}")
+
 # --- Messaging ---
 def send(answer, sender, phone_id):
     url = f"https://graph.facebook.com/v19.0/{phone_id}/messages"
@@ -476,13 +518,10 @@ def send(answer, sender, phone_id):
         return True
     except Exception as e:
         logging.error(f"Error sending message: {e}")
-        # Do not try to send again here to avoid recursion
         return False
 
 def safe_send(answer, sender, phone_id):
-    """Send a message, or ask the user to resend their message if sending fails."""
     if not send(answer, sender, phone_id):
-        # Only send fallback message if the original message failed
         send("Can you resend your message?", sender, phone_id)
 
 @app.route("/", methods=["GET", "POST"])
@@ -516,15 +555,11 @@ def webhook():
             return jsonify({"status": "error", "message": str(e)}), 400
 
 def message_handler(data, phone_id):
-    import json  # if not already imported at the top
-
     try:
         sender = data.get("from")
         prompt = data.get("text", {}).get("body", "").strip()
         if not sender:
             return
-
-        # Load state from Redis
         user_data = get_user_state(sender)
         step = user_data.get("step", "ask_name")
         order_system = user_data.get("order_system", OrderSystem())
@@ -620,13 +655,11 @@ def message_handler(data, phone_id):
             if prompt.lower() == "view cart":
                 cart_message = show_cart(user)
                 safe_send(cart_message, sender, phone_id)
-                # If delivery fee already in cart, ask for checkout instead of delivery area
                 if any(p.name == "__Delivery__" for p, q in user.get_cart_contents()):
                     safe_send("Would you like to checkout? (yes/no)", sender, phone_id)
                     user_data["step"] = "ask_checkout"
                     save_user_state(sender, user_data)
                 else:
-                    # Prompt for delivery area selection
                     safe_send("Please select your delivery area:\n" + "\n".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()]), sender, phone_id)
                     user_data["step"] = "get_area"
                     save_user_state(sender, user_data)
@@ -723,7 +756,8 @@ def message_handler(data, phone_id):
                     "2. Pay at supermarkets: Shoprite, Checkers, Usave OK, PicknPay, Game, Makro, SPAR using Mukuru wicode\n"
                     "3. Mukuru Direct Transfer (Details upon request)\n"
                     "4. World Remit Transfer (payment details provided upon request)\n"
-                    "5. Western Union (Details upon request)\n"                )
+                    "5. Western Union (Details upon request)\n" 
+                )
                 safe_send(
                     f"Order placed! 🛒\nOrder ID: {order_id}\n\n{show_cart(user)}\n\n"
                     f"Receiver: {user.checkout_data['receiver_name']}\n"
