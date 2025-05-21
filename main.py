@@ -8,9 +8,17 @@ from flask import Flask, request, jsonify, render_template
 from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+import google.generativeai as genai
+import fitz
+import sched
+import time
+from mimetypes import guess_type
+from urlextract import URLExtract
+
 
 logging.basicConfig(level=logging.INFO)
 
+db=False
 wa_token = os.environ.get("WA_TOKEN") # WhatsApp API Key
 gen_api = os.environ.get("GEN_API")  # Gemini API Key
 owner_phone = os.environ.get("OWNER_PHONE") # Owner's phone number with country code
@@ -18,9 +26,38 @@ owner_phone_1 = os.environ.get("OWNER_PHONE_1")
 owner_phone_2 = os.environ.get("OWNER_PHONE_2")
 owner_phone_3 = os.environ.get("OWNER_PHONE_3")
 owner_phone_4 = os.environ.get("OWNER_PHONE_4")
+model_name="gemini-2.0-flash"
 
 app = Flask(__name__)
 user_states = {}
+
+class CustomURLExtract(URLExtract):
+    def _get_cache_file_path(self):
+        cache_dir = "/tmp"
+        return os.path.join(cache_dir, "tlds-alpha-by-domain.txt")
+
+extractor = CustomURLExtract(limit=1)
+
+generation_config = {
+  "temperature": 1,
+  "top_p": 0.95,
+  "top_k": 0,
+  "max_output_tokens": 8192,
+}
+
+safety_settings = [
+  {"category": "HARM_CATEGORY_HARASSMENT","threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+  {"category": "HARM_CATEGORY_HATE_SPEECH","threshold": "BLOCK_MEDIUM_AND_ABOVE"},  
+  {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+  {"category": "HARM_CATEGORY_DANGEROUS_CONTENT","threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+]
+
+model = genai.GenerativeModel(model_name=model_name,
+                              generation_config=generation_config,
+                              safety_settings=safety_settings)
+
+convo = model.start_chat(history=[])
+
 
 class User:
     def __init__(self, payer_name, payer_phone):
@@ -319,12 +356,95 @@ def send(answer, sender, phone_id):
         'Authorization': f'Bearer {wa_token}',
         'Content-Type': 'application/json'
     }
-    data = {
+        data = {
         "messaging_product": "whatsapp",
         "to": sender,
-        "type": "text",
-        "text": {"body": answer}
-    }
+        "type": type,
+        type: {
+            body:content,
+            **({"caption":answer} if type!="text" else {})
+            },
+        }
+    response = requests.post(url, headers=headers, json=data)
+    if db:
+        insert_chat("Bot",answer)
+    return response
+
+def remove(*file_paths):
+    for file in file_paths:
+        if os.path.exists(file):
+            os.remove(file)
+        else:pass
+
+if db:
+    db_url=os.environ.get("DB_URL") # Database URL
+    engine=create_engine(db_url)
+    Session=sessionmaker(bind=engine)
+    Base=declarative_base()
+    scheduler = sched.scheduler(time.time, time.sleep)
+    report_time = datetime.now().replace(hour=22, minute=00, second=0, microsecond=0)
+
+    class Chat(Base):
+        __tablename__ = 'chats'
+        Chat_no = Column(Integer, primary_key=True)
+        Sender = Column(String(255), nullable=False)
+        Message = Column(String, nullable=False)
+        Chat_time = Column(DateTime, default=datetime.utcnow)
+
+    logging.info("Creating tables if they do not exist...")
+    Base.metadata.create_all(engine)
+
+    def insert_chat(sender, message):
+        logging.info("Inserting chat into database")
+        try:
+            session = Session()
+            chat = Chat(Sender=sender, Message=message)
+            session.add(chat)
+            session.commit()
+            logging.info("Chat inserted successfully")
+        except Exception as e:
+            logging.error(f"Error inserting chat: {e}")
+            session.rollback()
+        finally:
+            session.close()
+
+    def get_chats(sender):
+        try:
+            session = Session()
+            chats = session.query(Chat.Message).filter(Chat.Sender == sender).all()
+            return chats
+        except:pass
+        finally:
+            session.close()
+
+    def delete_old_chats():
+        try:
+            session = Session()
+            cutoff_date = datetime.now() - timedelta(days=14)
+            session.query(Chat).filter(Chat.Chat_time < cutoff_date).delete()
+            session.commit()
+            logging.info("Old chats deleted successfully")
+        except:
+            session.rollback()
+        finally:
+            session.close()
+
+    def create_report(phone_id):
+        logging.info("Creating report")
+        try:
+            today = datetime.today().strftime('%d-%m-%Y')
+            session = Session()
+            query = session.query(Chat.Message).filter(func.date_trunc('day', Chat.Chat_time) == today).all()
+            if query:
+                chats = '\n\n'.join(query)
+                send(chats, owner_phone, phone_id)
+        except Exception as e:
+            logging.error(f"Error creating report: {e}")
+        finally:
+            session.close()
+            
+else:pass
+    
     try:
         resp = requests.post(url, headers=headers, json=data)
         if not resp.ok:
@@ -345,6 +465,77 @@ def send(answer, sender, phone_id):
             "type": "text",
             "text": {"body": error_msg}
         })
+
+if db:
+    db_url=os.environ.get("DB_URL") # Database URL
+    engine=create_engine(db_url)
+    Session=sessionmaker(bind=engine)
+    Base=declarative_base()
+    scheduler = sched.scheduler(time.time, time.sleep)
+    report_time = datetime.now().replace(hour=22, minute=00, second=0, microsecond=0)
+
+    class Chat(Base):
+        __tablename__ = 'chats'
+        Chat_no = Column(Integer, primary_key=True)
+        Sender = Column(String(255), nullable=False)
+        Message = Column(String, nullable=False)
+        Chat_time = Column(DateTime, default=datetime.utcnow)
+
+    logging.info("Creating tables if they do not exist...")
+    Base.metadata.create_all(engine)
+
+    def insert_chat(sender, message):
+        logging.info("Inserting chat into database")
+        try:
+            session = Session()
+            chat = Chat(Sender=sender, Message=message)
+            session.add(chat)
+            session.commit()
+            logging.info("Chat inserted successfully")
+        except Exception as e:
+            logging.error(f"Error inserting chat: {e}")
+            session.rollback()
+        finally:
+            session.close()
+
+    def get_chats(sender):
+        try:
+            session = Session()
+            chats = session.query(Chat.Message).filter(Chat.Sender == sender).all()
+            return chats
+        except:pass
+        finally:
+            session.close()
+
+    def delete_old_chats():
+        try:
+            session = Session()
+            cutoff_date = datetime.now() - timedelta(days=14)
+            session.query(Chat).filter(Chat.Chat_time < cutoff_date).delete()
+            session.commit()
+            logging.info("Old chats deleted successfully")
+        except:
+            session.rollback()
+        finally:
+            session.close()
+
+    def create_report(phone_id):
+        logging.info("Creating report")
+        try:
+            today = datetime.today().strftime('%d-%m-%Y')
+            session = Session()
+            query = session.query(Chat.Message).filter(func.date_trunc('day', Chat.Chat_time) == today).all()
+            if query:
+                chats = '\n\n'.join(query)
+                send(chats, owner_phone, phone_id)
+        except Exception as e:
+            logging.error(f"Error creating report: {e}")
+        finally:
+            session.close()
+            
+else:pass
+
+
 
 @app.route("/", methods=["GET", "POST"])
 def index():
