@@ -578,9 +578,9 @@ def message_handler(data, phone_id):
             payment_info = (
                 f"Please make payment using one of the following options:\n\n"
                 f"1. EFT\nBank: FNB\nName: Zimbogrocer (Pty) Ltd\nAccount: 62847698167\nBranch Code: 250655\nSwift Code: FIRNZAJJ\nReference: {order_id}\nPlease remember to send the Proof of Payment as soon as you make payment. Have a nice day.\n\n"
-                f"2. Pay at supermarkets: SHOPRITE/CHECKERS/USAVE/PICK N PAY/ GAME/ MAKRO/ SPAR using Mukuru wicode\n"
-                f"3. World Remit Transfer (payment details provided upon request)\n"
-                f"4. Western Union ( payment details provided upon request)\n"
+                f"2. Pay at supermarkets: SHOPRITE, CHECKERS, USAVE, PICK N PAY, GAME, MAKRO or SPAR using Mukuru wicode\n\n"
+                f"3. World Remit Transfer (payment details provided upon request)\n\n"
+                f"4. Western Union ( payment details provided upon request)\n\n"
                 f"Order ID: {order_id}"
             )
             send(
