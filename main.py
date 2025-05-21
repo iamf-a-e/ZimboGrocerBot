@@ -325,7 +325,26 @@ def send(answer, sender, phone_id):
         "type": "text",
         "text": {"body": answer}
     }
-    requests.post(url, headers=headers, json=data)
+    try:
+        resp = requests.post(url, headers=headers, json=data)
+        if not resp.ok:
+            # Ask user to resend their message if delivery failed
+            error_msg = "Sorry, there was an error delivering your message. Please resend your last message."
+            requests.post(url, headers=headers, json={
+                "messaging_product": "whatsapp",
+                "to": sender,
+                "type": "text",
+                "text": {"body": error_msg}
+            })
+    except Exception as e:
+        # Handle network errors or unexpected issues
+        error_msg = "Sorry, there was a network error. Please resend your last message."
+        requests.post(url, headers=headers, json={
+            "messaging_product": "whatsapp",
+            "to": sender,
+            "type": "text",
+            "text": {"body": error_msg}
+        })
 
 @app.route("/", methods=["GET", "POST"])
 def index():
