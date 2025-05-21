@@ -45,6 +45,7 @@ model_name = "gemini-2.0-flash"
 app = Flask(__name__)
 
 USER_STATE_FILE = "user_states.pkl"
+state_lock = threading.Lock()
 
 def load_user_states():
     if os.path.exists(USER_STATE_FILE):
