@@ -587,25 +587,35 @@ def message_handler(data, phone_id):
         if prompt.lower() == "view cart":
             cart_message = show_cart(user)
             send(cart_message, sender, phone_id)
-            send("Please select your delivery area:\n" +
-                 "\n".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()]), sender, phone_id)
-            user_data["step"] = "get_area"
+            
+            # If delivery fee already in cart, ask for checkout instead of delivery area
+            if any(p.name == "__Delivery__" for p, q in user.get_cart_contents()):
+                send("Would you like to checkout? (yes/no)", sender, phone_id)
+                user_data["step"] = "ask_checkout"
+            else:
+                # Prompt for delivery area selection
+                send("Please select your delivery area:\n" + "\n".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()]), sender, phone_id)
+                user_data["step"] = "get_area"
+                
         elif prompt.lower() == "clear cart":
             user.clear_cart()
             send("Cart cleared.", sender, phone_id)
             send("What would you like to do next?\n- View cart\n- Add Item", sender, phone_id)
             user_data["step"] = "post_add_menu"
+            
         elif prompt.lower().startswith("remove "):
             item = prompt[7:].strip()
             user.remove_from_cart(item)
             send(f"{item} removed from cart.\n{show_cart(user)}", sender, phone_id)
             send("What would you like to do next?\n- View cart\n- Add Item", sender, phone_id)
             user_data["step"] = "post_add_menu"
+            
         elif prompt.lower() in ["add", "add item", "add another", "add more"]:
             send("Sure! Here are the available categories:\n" + list_categories(), sender, phone_id)
             user_data["step"] = "choose_category"
         else:
             send("Sorry, I didn't understand. You can:\n- View Cart\n- Clear Cart\n- Remove <item>\n- Add Item", sender, phone_id)
+    
     elif step == "get_area":
         area = prompt.strip()
         if area in delivery_areas:
@@ -641,6 +651,7 @@ def message_handler(data, phone_id):
         user.checkout_data["id_number"] = prompt
         send("Enter receiver’s phone number.", sender, phone_id)
         user_data["step"] = "get_phone"
+    
     elif step == "get_phone":
         user.checkout_data["phone"] = prompt
         details = user.checkout_data
