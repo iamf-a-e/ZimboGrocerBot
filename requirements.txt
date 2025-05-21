@@ -1,7 +1,6 @@
 requests
 redis
 urlextract
-Flask
 google-generativeai
 pymupdf
 sqlalchemy
