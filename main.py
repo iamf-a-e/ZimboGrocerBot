@@ -43,10 +43,8 @@ owner_phone_2 = os.environ.get("OWNER_PHONE_2")
 owner_phone_3 = os.environ.get("OWNER_PHONE_3")
 owner_phone_4 = os.environ.get("OWNER_PHONE_4")
 db_url = os.environ.get("DB_URL")  # Database URL
-
-# You must set this to your Gemini model name, e.g. "gemini-pro"
-model_name = os.environ.get("MODEL_NAME", "gemini-pro")  # fallback if not set
-db = bool(db_url)  # Enable DB only if URL exists
+model_name="gemini-2.0-flash"  # fallback if not set
+db = False(db_url)  # Enable DB only if URL exists
 
 app = Flask(__name__)
 
