@@ -1,6 +1,6 @@
 Flask
-requests
+google-generativeai
+pymupdf
 sqlalchemy
 urlextract
 psycopg2-binary
-google-generativeai
