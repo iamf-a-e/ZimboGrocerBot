@@ -393,7 +393,8 @@ def send(answer, sender, phone_id):
         "type": "text",
         "text": {"body": answer}
     }
-    requests.post(url, headers=headers, json=data)
+    resp = requests.post(url, headers=headers, json=data)
+    logging.info("WhatsApp send response: %s %s", resp.status_code, resp.text)
 
 @app.route("/", methods=["GET"])
 def index():
@@ -409,6 +410,18 @@ def webhook():
             return challenge, 200
         return "Failed", 403
     elif request.method == "POST":
+        payload = request.get_json()
+        try:
+            messages = payload["entry"][0]["changes"][0]["value"].get("messages")
+            if not messages:
+                return jsonify({"status": "no messages"}), 200
+            data = messages[0]
+            phone_id = payload["entry"][0]["changes"][0]["value"]["metadata"]["phone_number_id"]
+            message_handler(data, phone_id)
+            return jsonify({"status": "ok"}), 200
+except Exception as e:
+    logging.exception("Webhook error: %s", e)
+    return jsonify({"status": "error", "message": str(e)}), 400
         data = request.get_json()["entry"][0]["changes"][0]["value"]["messages"][0]
         phone_id = request.get_json()["entry"][0]["changes"][0]["value"]["metadata"]["phone_number_id"]
         message_handler(data, phone_id)
