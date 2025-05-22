@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO)
 
 # Environment Variables
 wa_token = os.environ.get("WA_TOKEN")
-DATABASE_URL = os.environ.get("DATABASE_URL", "mysql+pymysql://root:@localhost:3306/chatbot_db")
+DATABASE_URL = os.environ.get("DATABASE_URL", "mysql+pymysql://root@129.232.179.60:3306/chatbot_db")
 gen_api = os.environ.get("GEN_API")  # Gemini API Key
 owner_phone = os.environ.get("OWNER_PHONE") # Owner's phone number with country code
 owner_phone_1 = os.environ.get("OWNER_PHONE_1")
