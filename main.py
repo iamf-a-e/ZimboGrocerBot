@@ -1,22 +1,18 @@
-
 import os
 import logging
 import requests
 import random
 import string
 import json
-from datetime import datetime
 from flask import Flask, request, jsonify, render_template
 from sqlalchemy import create_engine, Column, String, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from models import Base, User, Product, CartItem, Order, OrderItem
-
 
 # Logging
 logging.basicConfig(level=logging.INFO)
 
-# Environment Variables
+# ENV Variables
 wa_token = os.environ.get("WA_TOKEN")
 DATABASE_URL = os.environ.get("DATABASE_URL", "mysql+pymysql://root@129.232.179.60:3306/chatbot_db")
 gen_api = os.environ.get("GEN_API")  # Gemini API Key
@@ -27,21 +23,21 @@ owner_phone_3 = os.environ.get("OWNER_PHONE_3")
 owner_phone_4 = os.environ.get("OWNER_PHONE_4")
 
 
-# Flask App
+# Flask setup
 app = Flask(__name__)
 
-# SQLAlchemy Setup
+# SQLAlchemy setup
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# Models
+# User state table
 class UserStateDB(Base):
     __tablename__ = "user_states"
     phone = Column(String(20), primary_key=True, index=True)
     state_data = Column(Text)
 
-# Product-related Classes
+# Product logic (same as your existing Category, Product, OrderSystem, User classes)
 class User:
     def __init__(self, payer_name, payer_phone):
         self.payer_name = payer_name
@@ -79,16 +75,12 @@ class OrderSystem:
     def __init__(self):
         self.categories = {}
         self.populate_products()
-
     def add_category(self, category):
         self.categories[category.name] = category
-
     def list_categories(self):
         return list(self.categories.keys())
-
     def list_products(self, category_name):
         return self.categories[category_name].products if category_name in self.categories else []
-
     def populate_products(self):
         # Pantry
         pantry = Category("Pantry")
@@ -333,7 +325,7 @@ class OrderSystem:
         self.add_category(baby_section)
 
 
-# DB Helper Functions
+# DB State helpers
 def get_user_state(sender):
     db = SessionLocal()
     try:
@@ -344,7 +336,7 @@ def get_user_state(sender):
             u = state.get("user")
             if u:
                 user = User(u['payer_name'], u['payer_phone'])
-                user.cart = [(Product(p['name'], p['price'], p['description']), q) for p, q in u.get('cart', [])]
+                user.cart = [(Product(p['name'], p['price'], p['description']), q) for p, q in u.get('cart',[])]
                 user.checkout_data = u.get('checkout_data', {})
                 state["user"] = user
             else:
@@ -369,7 +361,6 @@ def save_user_state(sender, state):
             }
         state_copy.pop("order_system", None)
         json_data = json.dumps(state_copy)
-
         record = db.query(UserStateDB).filter_by(phone=sender).first()
         if record:
             record.state_data = json_data
@@ -380,7 +371,7 @@ def save_user_state(sender, state):
     finally:
         db.close()
 
-# WhatsApp Send Message
+# WhatsApp send
 def send(answer, sender, phone_id):
     url = f"https://graph.facebook.com/v19.0/{phone_id}/messages"
     headers = {
@@ -393,13 +384,123 @@ def send(answer, sender, phone_id):
         "type": "text",
         "text": {"body": answer}
     }
-    resp = requests.post(url, headers=headers, json=data)
-    logging.info("WhatsApp send response: %s %s", resp.status_code, resp.text)
+    try:
+        resp = requests.post(url, headers=headers, json=data, timeout=10)
+        logging.info("WhatsApp send response: %s %s", resp.status_code, resp.text)
+    except Exception as e:
+        logging.error("WhatsApp send error: %s", e)
 
+# Message handling
+def message_handler(data, phone_id):
+    sender = data.get("from")
+    prompt = data.get("text", {}).get("body", "").strip()
+    user_data = get_user_state(sender)
+    step = user_data.get("step", "ask_name")
+    order_system = user_data.get("order_system", OrderSystem())
+    user = user_data.get("user")
+
+    def list_categories():
+        return "\n".join([f"{chr(65+i)}. {cat}" for i, cat in enumerate(order_system.list_categories())])
+    def list_products(category_name):
+        products = order_system.list_products(category_name)
+        return "\n".join([f"{i+1}. {p.name} - R{p.price:.2f}: {p.description}" for i, p in enumerate(products)])
+    def show_cart(user):
+        cart = user.get_cart_contents()
+        if not cart:
+            return "Your cart is empty."
+        lines = [f"{p.name} x{q} = R{p.price*q:.2f}" for p, q in cart]
+        total = sum(p.price*q for p, q in cart)
+        return "\n".join(lines) + f"\n\nTotal: R{total:.2f}"
+
+      delivery_areas = {
+        "Harare": 240,
+        "Chitungwiza": 300,
+        "Mabvuku": 300,
+        "Ruwa": 300,
+        "Domboshava": 250,
+        "Southlea": 300,
+        "Southview": 300,
+        "Epworth": 300,
+        "Mazoe": 300,
+        "Chinhoyi": 350,
+        "Banket": 350,
+        "Rusape": 400,
+        "Dema": 300
+    }
+
+
+    if step == "ask_name":
+        send("Hello! Welcome to Zimbogrocer. What's your name?", sender, phone_id)
+        user_data["step"] = "save_name"
+    elif step == "save_name":
+        user = User(prompt.title(), sender)
+        user_data["user"] = user
+        send(f"Thanks {user.payer_name}! Please select a category:\n{list_categories()}", sender, phone_id)
+        user_data["step"] = "choose_category"
+    elif step == "choose_category":
+        idx = ord(prompt.upper()) - 65
+        categories = order_system.list_categories()
+        if 0 <= idx < len(categories):
+            cat = categories[idx]
+            user_data["selected_category"] = cat
+            send(f"Products in {cat}:\n{list_products(cat)}\nSelect a product by number.", sender, phone_id)
+            user_data["step"] = "choose_product"
+        else:
+            send("Invalid category. Try again:\n" + list_categories(), sender, phone_id)
+    elif step == "choose_product":
+        try:
+            index = int(prompt) - 1
+            cat = user_data["selected_category"]
+            products = order_system.list_products(cat)
+            if 0 <= index < len(products):
+                user_data["selected_product"] = products[index]
+                send(f"You selected {products[index].name}. How many would you like to add?", sender, phone_id)
+                user_data["step"] = "ask_quantity"
+            else:
+                send("Invalid product number. Try again.", sender, phone_id)
+        except Exception:
+            send("Please enter a valid number.", sender, phone_id)
+    elif step == "ask_quantity":
+        try:
+            qty = int(prompt)
+            prod = user_data["selected_product"]
+            user.add_to_cart(prod, qty)
+            user_data["user"] = user
+            send("Item added to your cart.\nWhat would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Add Item", sender, phone_id)
+            user_data["step"] = "post_add_menu"
+        except Exception:
+            send("Please enter a valid number for quantity.", sender, phone_id)
+    elif step == "post_add_menu":
+        if prompt.lower() == "view cart":
+            cart_message = show_cart(user)
+            send(cart_message, sender, phone_id)
+            send("What would you like to do next?\n- Add Item\n- Checkout\n- Clear cart\n- Remove <item>", sender, phone_id)
+        elif prompt.lower() == "clear cart":
+            user.clear_cart()
+            user_data["user"] = user
+            send("Cart cleared.", sender, phone_id)
+            send("What would you like to do next?\n- Add Item\n- View cart", sender, phone_id)
+        elif prompt.lower().startswith("remove "):
+            item = prompt[7:].strip()
+            user.remove_from_cart(item)
+            user_data["user"] = user
+            send(f"{item} removed from cart.\n{show_cart(user)}", sender, phone_id)
+            send("What would you like to do next?\n- Add Item\n- View cart", sender, phone_id)
+        elif prompt.lower() in ["add", "add item", "add another", "add more"]:
+            send("Sure! Here are the available categories:\n" + list_categories(), sender, phone_id)
+            user_data["step"] = "choose_category"
+        else:
+            send("Sorry, I didn't understand. You can:\n- View Cart\n- Clear Cart\n- Remove <item>\n- Add Item", sender, phone_id)
+    # Add more steps for checkout, delivery, etc. as needed
+
+    save_user_state(sender, user_data)
+
+# Index route for testing
 @app.route("/", methods=["GET"])
 def index():
-    return render_template("connected.html")
+    return "Bot is running!"
 
+# Robust webhook handler
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
     if request.method == "GET":
@@ -411,84 +512,19 @@ def webhook():
         return "Failed", 403
     elif request.method == "POST":
         payload = request.get_json()
+        logging.info("Webhook POST payload: %s", payload)
         try:
-            messages = payload["entry"][0]["changes"][0]["value"].get("messages")
+            value = payload["entry"][0]["changes"][0]["value"]
+            messages = value.get("messages")
             if not messages:
                 return jsonify({"status": "no messages"}), 200
             data = messages[0]
-            phone_id = payload["entry"][0]["changes"][0]["value"]["metadata"]["phone_number_id"]
+            phone_id = value["metadata"]["phone_number_id"]
             message_handler(data, phone_id)
             return jsonify({"status": "ok"}), 200
-except Exception as e:
-    logging.exception("Webhook error: %s", e)
-    return jsonify({"status": "error", "message": str(e)}), 400
-        data = request.get_json()["entry"][0]["changes"][0]["value"]["messages"][0]
-        phone_id = request.get_json()["entry"][0]["changes"][0]["value"]["metadata"]["phone_number_id"]
-        message_handler(data, phone_id)
-        return jsonify({"status": "ok"}), 200
-
-# Message Handling
-def message_handler(data, phone_id):
-    sender = data["from"]
-    prompt = data["text"]["body"].strip()
-    user_data = get_user_state(sender)
-    step = user_data["step"]
-    order_system = user_data["order_system"]
-    user = user_data.get("user")
-    db = SessionLocal()
-
-    try:
-        step = user_data["step"]
-
-        if step == "ask_name":
-            send("Hello! Welcome to Zimbogrocer. What's your name?", sender, phone_id)
-            user_data["step"] = "save_name"
-
-        elif step == "save_name":
-            name = prompt.title()
-            db_user = db.query(User).filter_by(phone=sender).first()
-            if not db_user:
-                db_user = User(name=name, phone=sender)
-                db.add(db_user)
-                db.commit()
-            user_data["user"] = db_user
-            send(f"Thanks {name}! Please select a category:\n{list_categories()}", sender, phone_id)
-            user_data["step"] = "choose_category"
-
-        elif step == "choose_category":
-            idx = ord(prompt.upper()) - 65
-            categories = ["Beverages", "Fresh Groceries"]
-            if 0 <= idx < len(categories):
-                cat = categories[idx]
-                user_data["selected_category"] = chr(65 + idx)
-                send(f"Products in {cat}:\n{list_products(chr(65 + idx))}\nSelect a product by number.", sender, phone_id)
-                user_data["step"] = "choose_product"
-            else:
-                send("Invalid category. Try again:\n" + list_categories(), sender, phone_id)
-
-        elif step == "choose_product":
-            try:
-                index = int(prompt)
-                user_data["selected_product"] = {"name": "Sample Product", "price": 50.0}
-                send("You selected Sample Product. How many would you like to add?", sender, phone_id)
-                user_data["step"] = "ask_quantity"
-            except:
-                send("Please enter a valid number.", sender, phone_id)
-
-        elif step == "ask_quantity":
-            try:
-                qty = int(prompt)
-                prod = user_data["selected_product"]
-                send("Item added to your cart.\nWhat would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Add Item", sender, phone_id)
-                user_data["step"] = "post_add_menu"
-
-            except:
-                send("Please enter a valid number for quantity.", sender, phone_id)
-
-        save_user_state(sender, user_data)
-
-    finally:
-        db.close()
+        except Exception as e:
+            logging.exception("Webhook error: %s", e)
+            return jsonify({"status": "error", "message": str(e)}), 400
 
 if __name__ == "__main__":
     Base.metadata.create_all(bind=engine)
