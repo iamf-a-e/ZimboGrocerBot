@@ -21,9 +21,9 @@ owner_phone_4 = os.environ.get("OWNER_PHONE_4")
 
 # Redis Connection
 redis_client = StrictRedis(
-    host=os.environ.get("UPSTASH_REDIS_HOST"),
+    host=os.environ.get("REDIS_HOST"),
     port=6379,
-    password=os.environ.get("UPSTASH_REDIS_PASSWORD"),
+    password=os.environ.get("REDIS_PASSWORD"),
     ssl=True,
     decode_responses=True
 )
