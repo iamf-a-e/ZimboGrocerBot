@@ -368,8 +368,7 @@ def handle_ask_name(prompt, user_data):
 def handle_save_name(prompt, user_data):
     user = User(prompt.title(), user_data['sender'])
     user_data['user'] = user
-    send(f"Thanks {user.payer_name}! Please select a category:
-{list_categories(user_data['order_system'])}", user_data['sender'], user_data['phone_id'])
+    send(f"Thanks {user.payer_name}! Please select a category:\n{list_categories(user_data['order_system'])}", user_data['sender'], user_data['phone_id'])
     user_data['step'] = 'choose_category'
 
 def handle_choose_category(prompt, user_data):
