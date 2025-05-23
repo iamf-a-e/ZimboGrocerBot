@@ -7,3 +7,5 @@ psycopg2-binary
 pymysql
 requests
 python-dotenv
+requests
+redis
