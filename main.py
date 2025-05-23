@@ -619,7 +619,7 @@ Total: R{total:.2f}"
 def list_delivery_areas(delivery_areas):
     return "
 ".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()])
-# Paste your full handler implementations below this line
+
 
 if __name__ == "__main__":
     app.run(debug=True, port=8000)
