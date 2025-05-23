@@ -5,39 +5,32 @@ import random
 import string
 import json
 from flask import Flask, request, jsonify, render_template
-from sqlalchemy import create_engine, Column, String, Text
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from redis import StrictRedis
 
-# Logging
+# Setup logging
 logging.basicConfig(level=logging.INFO)
 
-# ENV Variables
+# Environment Variables
 wa_token = os.environ.get("WA_TOKEN")
-DATABASE_URL = os.environ.get("DATABASE_URL", "mysql+pymysql://root@129.232.179.60:3306/chatbot_db")
-gen_api = os.environ.get("GEN_API")  # Gemini API Key
-owner_phone = os.environ.get("OWNER_PHONE") # Owner's phone number with country code
+gen_api = os.environ.get("GEN_API")
+owner_phone = os.environ.get("OWNER_PHONE")
 owner_phone_1 = os.environ.get("OWNER_PHONE_1")
 owner_phone_2 = os.environ.get("OWNER_PHONE_2")
 owner_phone_3 = os.environ.get("OWNER_PHONE_3")
 owner_phone_4 = os.environ.get("OWNER_PHONE_4")
 
+# Redis Connection
+redis_client = StrictRedis(
+    host=os.environ.get("UPSTASH_REDIS_HOST"),
+    port=6379,
+    password=os.environ.get("UPSTASH_REDIS_PASSWORD"),
+    ssl=True,
+    decode_responses=True
+)
 
-# Flask setup
+# Flask App
 app = Flask(__name__)
 
-# SQLAlchemy setup
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
-
-# User state table
-class UserStateDB(Base):
-    __tablename__ = "user_states"
-    phone = Column(String(20), primary_key=True, index=True)
-    state_data = Column(Text)
-
-# Product logic (same as your existing Category, Product, OrderSystem, User classes)
 class User:
     def __init__(self, payer_name, payer_phone):
         self.payer_name = payer_name
@@ -63,444 +56,816 @@ class Product:
         self.price = price
         self.description = description
 
-class Category:
-    def __init__(self, name):
-        self.name = name
-        self.products = []
-
-    def add_product(self, product):
-        self.products.append(product)
-
 class OrderSystem:
     def __init__(self):
-        self.categories = {}
-        self.populate_products()
-    def add_category(self, category):
-        self.categories[category.name] = category
-    def list_categories(self):
-        return list(self.categories.keys())
-    def list_products(self, category_name):
-        return self.categories[category_name].products if category_name in self.categories else []
-    def populate_products(self):
-        # Pantry
-        pantry = Category("Pantry")
-        pantry.add_product(Product("Ace Instant Porridge 1kg Assorted", 27.99, "Instant porridge mix"))
-        pantry.add_product(Product("All Gold Tomato Sauce 700g", 44.99, "Tomato sauce"))
-        pantry.add_product(Product("Aromat Original 50g", 24.99, "Seasoning"))
-        pantry.add_product(Product("Bakers Inn Bread", 23.99, "Brown loaf bread"))
-        pantry.add_product(Product("Bakers Inn White Loaf", 23.99, "White loaf bread"))
-        pantry.add_product(Product("Bella Macaroni 3kg", 82.99, "Macaroni pasta"))
-        pantry.add_product(Product("Bisto Gravy 125g", 19.99, "Gravy mix"))
-        pantry.add_product(Product("Blue Band Margarine 500g", 44.99, "Margarine"))
-        pantry.add_product(Product("Blue Ribbon Self Raising 2kg", 37.99, "Self-raising flour"))
-        pantry.add_product(Product("Bokomo Cornflakes 1kg", 54.90, "Cornflakes"))
-        pantry.add_product(Product("Bullbrand Corned Beef 300g", 39.99, "Corned beef"))
-        pantry.add_product(Product("Buttercup Margarine 500g", 44.99, "Margarine"))
-        pantry.add_product(Product("Cashel Valley Baked Beans 400g", 18.99, "Baked beans"))
-        pantry.add_product(Product("Cerevita 500g", 69.99, "Cereal"))
-        pantry.add_product(Product("Cookmore Cooking Oil 2L", 67.99, "Cooking oil"))
-        pantry.add_product(Product("Cross and Blackwell Mayonnaise 700g", 49.99, "Mayonnaise"))
-        pantry.add_product(Product("Dried Kapenta 1kg", 134.99, "Dried fish"))
-        pantry.add_product(Product("Ekonol Rice 5kg", 119.29, "Rice"))
-        pantry.add_product(Product("Fattis Macaroni 500g", 22.99, "Macaroni"))
-        pantry.add_product(Product("Gloria Self Raising Flour 5kg", 79.90, "Self-raising flour"))
-        pantry.add_product(Product("Jungle Oats 1kg", 44.99, "Oats"))
-        pantry.add_product(Product("Knorr Brown Onion Soup 50g", 7.99, "Onion soup mix"))
-        pantry.add_product(Product("Lucky Star Pilchards in Tomato Sauce 155g", 17.99, "Pilchards"))
-        pantry.add_product(Product("Mahatma Rice 2kg", 52.99, "Rice"))
-        pantry.add_product(Product("Peanut Butter 350ml", 19.99, "Peanut butter"))
-        pantry.add_product(Product("Roller Meal 10kg- Zim Meal", 136.99, "Maize meal"))
-        self.add_category(pantry)
-        
-        # Beverages
-        beverages = Category("Beverages")
-        beverages.add_product(Product("Stella Teabags 100 Pack", 42.99, "Tea bags"))
-        beverages.add_product(Product("Mazoe Raspberry 2 Litres", 67.99, "Fruit drink"))
-        beverages.add_product(Product("Cremora Creamer 750g", 72.99, "Coffee creamer"))
-        beverages.add_product(Product("Everyday Milk Powder 400g", 67.99, "Milk powder"))
-        beverages.add_product(Product("Freshpack Rooibos 80s", 84.99, "Rooibos tea"))
-        beverages.add_product(Product("Nestle Gold Cross Condensed Milk 385g", 29.99, "Condensed milk"))
-        beverages.add_product(Product("Pine Nut Soft Drink 2L", 37.99, "Soft drink"))
-        beverages.add_product(Product("Mazoe Blackberry 2L", 68.99, "Fruit drink"))
-        beverages.add_product(Product("Quench Mango 2L", 32.99, "Fruit drink"))
-        beverages.add_product(Product("Coca Cola 2L", 39.99, "Soft drink"))
-        beverages.add_product(Product("Pfuko Dairibord Maheu 500ml", 14.99, "Maheu drink"))
-        beverages.add_product(Product("Sprite 2 Litres", 37.99, "Soft drink"))
-        beverages.add_product(Product("Pepsi (500ml x 24)", 178.99, "Soft drink pack"))
-        beverages.add_product(Product("Probands Milk 500ml", 20.99, "Steri milk"))
-        beverages.add_product(Product("Lyons Hot Chocolate 125g", 42.99, "Hot chocolate"))
-        beverages.add_product(Product("Dendairy Long Life Full Cream Milk 1 Litre", 28.99, "Long life milk"))
-        beverages.add_product(Product("Joko Tea Bags 100", 55.99, "Tea bags"))
-        beverages.add_product(Product("Cool Splash 5 Litre Orange Juice", 99.99, "Orange juice"))
-        beverages.add_product(Product("Cremora Coffee Creamer 750g", 72.99, "Coffee creamer"))
-        beverages.add_product(Product("Fanta Orange 2 Litres", 37.99, "Soft drink"))
-        beverages.add_product(Product("Quench Mango 5L", 92.25, "Fruit drink"))
-        beverages.add_product(Product("Ricoffy Coffee 250g", 52.99, "Coffee"))
-        beverages.add_product(Product("Dendairy Low Fat Long Life Milk", 28.99, "Low fat milk"))
-        beverages.add_product(Product("Quickbrew Teabags 50", 25.99, "Teabags"))
-        beverages.add_product(Product("Fruitrade 2L Orange Juice", 32.90, "Orange juice"))
-        beverages.add_product(Product("Mazoe Orange Crush 2L", 69.99, "Fruit drink"))
-        beverages.add_product(Product("Joko Rooibos Tea Bags 80s", 84.99, "Rooibos tea"))
-        self.add_category(beverages)
-                
-        # Household
-        household = Category("Household")
-        household.add_product(Product("Sta Soft Lavender 2L", 59.99, "Fabric softener"))
-        household.add_product(Product("Sunlight Dishwashing Liquid 750ml", 35.99, "Dishwashing liquid"))
-        household.add_product(Product("Nova 2-Ply Toilet Paper 9s", 49.90, "Toilet paper"))
-        household.add_product(Product("Domestos Thick Bleach Assorted 750ml", 39.99, "Bleach cleaner"))
-        household.add_product(Product("Doom Odourless Multi-Insect Killer 300ml", 32.90, "Insect killer"))
-        household.add_product(Product("Handy Andy Assorted 500ml", 32.99, "Multi-surface cleaner"))
-        household.add_product(Product("Jik Assorted 750ml", 29.99, "Disinfectant"))
-        household.add_product(Product("Maq Dishwashing Liquid 750ml", 35.99, "Dishwashing liquid"))
-        household.add_product(Product("Maq 3kg Washing Powder", 72.90, "Washing powder"))
-        household.add_product(Product("Maq Handwashing Powder 2kg", 78.99, "Handwashing powder"))
-        household.add_product(Product("Elangeni Washing Bar 1kg", 24.59, "Washing bar"))
-        household.add_product(Product("Vim Scourer 500g", 21.99, "Scouring pad"))
-        household.add_product(Product("Matches Carton (10s)", 8.99, "Matches"))
-        household.add_product(Product("Surf 5kg", 159.99, "Washing powder"))
-        household.add_product(Product("Britelite Candles 6s", 32.99, "Candles"))
-        household.add_product(Product("Sta-Soft Assorted Refill Sachet 2L", 39.99, "Fabric softener refill"))
-        household.add_product(Product("Poppin Fresh Dishwashing Liquid 750ml", 22.99, "Dishwashing liquid"))
-        household.add_product(Product("Poppin Fresh Toilet Cleaner 500ml", 34.99, "Toilet cleaner"))
-        household.add_product(Product("Poppin Fresh Multi-Purpose Cleaner", 25.99, "Multi-purpose cleaner"))
-        self.add_category(household)
-        
-        # Personal Care
-        personal_care = Category("Personal Care")
-        personal_care.add_product(Product("Softex Toilet Tissue 1-Ply 4s", 39.99, "Toilet tissue"))
-        personal_care.add_product(Product("Protex Bath Soap Assorted 150g", 21.99, "Bath soap"))
-        personal_care.add_product(Product("Sona Bath Soap 300g", 13.99, "Bath soap"))
-        personal_care.add_product(Product("Kiwi Black Shoe Polish 50ml", 18.99, "Shoe polish"))
-        personal_care.add_product(Product("Nivea Women's Roll On Assorted 50ml", 33.99, "Deodorant"))
-        personal_care.add_product(Product("Clere Lanolin Lotion 400ml", 35.99, "Body lotion"))
-        personal_care.add_product(Product("Vaseline Men Petroleum Jelly 250ml", 9.99, "Petroleum jelly"))
-        personal_care.add_product(Product("Vaseline Petroleum Jelly Original 250ml", 39.99, "Petroleum jelly"))
-        personal_care.add_product(Product("Sunlight Bath Soap Lively Lemon 175g", 10.90, "Bath soap"))
-        personal_care.add_product(Product("Shield Fresh Shower Deo", 24.99, "Deodorant"))
-        personal_care.add_product(Product("Hoity Toity Ladies Spray", 22.90, "Ladies spray"))
-        personal_care.add_product(Product("Brut Total Attraction Roll On", 17.90, "Deodorant"))
-        personal_care.add_product(Product("Vaseline Men Lotion 400ml", 64.99, "Body lotion"))
-        personal_care.add_product(Product("Shield Dry Musk Roll On 50ml", 24.99, "Deodorant"))
-        personal_care.add_product(Product("Sunlight Bath Soap Juicy Orange 150g", 10.99, "Bath soap"))
-        personal_care.add_product(Product("Axe Men Roll On Wild Spice", 32.99, "Deodorant"))
-        personal_care.add_product(Product("Nivea Rich Nourishing Cream 400ml", 79.99, "Body cream"))
-        personal_care.add_product(Product("Dawn Rich Lanolin Lotion 400ml", 24.90, "Body lotion"))
-        personal_care.add_product(Product("Twinsaver 2-Ply Toilet Paper", 32.90, "Toilet paper"))
-        personal_care.add_product(Product("Hoity Toity Body Lotion 400ml", 44.90, "Body lotion"))
-        personal_care.add_product(Product("Axe Deo Assorted Men", 36.99, "Deodorant"))
-        personal_care.add_product(Product("Stayfree Pads Scented Wings 10s", 15.99, "Sanitary pads"))
-        personal_care.add_product(Product("Geisha Bath Soap", 9.90, "Bath soap"))
-        personal_care.add_product(Product("Clere Berries and Cream 500ml", 39.99, "Body lotion"))
-        personal_care.add_product(Product("Clere Body Cream Cocoa Butter 500ml", 39.99, "Body cream"))
-        personal_care.add_product(Product("Ingram's Camphor Cream Herbal 500ml", 57.99, "Herbal cream"))
-        personal_care.add_product(Product("Lifebuoy Lemon Fresh 175g", 16.99, "Bath soap"))
-        personal_care.add_product(Product("Aquafresh Fresh and Minty Toothpaste 100ml", 22.99, "Toothpaste"))
-        personal_care.add_product(Product("Lil Lets Pads Super Maxi Thick 8s", 13.99, "Sanitary pads"))
-        personal_care.add_product(Product("Nivea Men Lotion (Assorted) 400ml", 79.99, "Body lotion"))
-        personal_care.add_product(Product("Nivea Men Cream (Assorted) 400ml", 79.99, "Body cream"))
-        personal_care.add_product(Product("Nivea Body Creme Deep Impact 400ml", 79.99, "Body cream"))
-        personal_care.add_product(Product("Clere Berries and Creme Lotion 400ml", 35.99, "Body lotion"))
-        personal_care.add_product(Product("Clere Men 400ml Lotion Assorted", 35.99, "Men's lotion"))
-        personal_care.add_product(Product("Pearl/Sona Bath Soap Assorted 200g", 13.99, "Bath soap"))
-        personal_care.add_product(Product("Nivea Intensive Moisturizing Creme 500ml", 79.99, "Moisturizing cream"))
-        personal_care.add_product(Product("Protex for Men Assorted Bath Soap 150g", 21.99, "Bath soap"))
-        personal_care.add_product(Product("Axe Roll On Assorted", 36.99, "Deodorant"))
-        personal_care.add_product(Product("Satiskin Floral Bouquet 2L", 99.99, "Body wash"))
-        personal_care.add_product(Product("Nivea Deep Impact Lotion 400ml", 79.99, "Body lotion"))
-        personal_care.add_product(Product("Nivea Ladies Deo Pearl Beauty", 32.90, "Deodorant"))
-        personal_care.add_product(Product("Nivea Rich Nourishing Lotion 400ml", 79.99, "Body lotion"))
-        personal_care.add_product(Product("Nivea Deo Dry Confidence Women 150ml", 32.99, "Deodorant"))
-        personal_care.add_product(Product("Dove Roll On Assorted", 26.99, "Deodorant"))
-        personal_care.add_product(Product("Satiskin Foam Bath Berry Fantasy 2L", 99.99, "Foam bath"))
-        personal_care.add_product(Product("Clere Glycerin 100ml", 21.99, "Glycerin"))
-        personal_care.add_product(Product("Nivea Body Creme Max Hydration 400ml", 79.99, "Body cream"))
-        personal_care.add_product(Product("Clere Men Body Cream Assorted 400ml", 39.99, "Men's body cream"))
-        personal_care.add_product(Product("Nivea Intensive Moisturizing Lotion 400g", 79.99, "Moisturizing lotion"))
-        personal_care.add_product(Product("Lux Soft Touch 175g", 21.99, "Bath soap"))
-        personal_care.add_product(Product("Lifebuoy Total 10 175g", 16.99, "Bath soap"))
-        personal_care.add_product(Product("Jade Bath Soap Assorted", 12.60, "Bath soap"))
-        personal_care.add_product(Product("Stayfree Pads Unscented Wings 10s", 19.90, "Sanitary pads"))
-        personal_care.add_product(Product("Colgate 100ml", 18.99, "Toothpaste"))
-        personal_care.add_product(Product("Clere Men Fire 450ml", 39.99, "Men's lotion"))
-        personal_care.add_product(Product("Shield Men's Roll On Assorted", 24.99, "Deodorant"))
-        personal_care.add_product(Product("Shower to Shower Ladies Deodorant", 27.99, "Deodorant"))
-        personal_care.add_product(Product("Lux Soft Caress 175g", 21.99, "Bath soap"))
-        personal_care.add_product(Product("Nivea Men Revitalizing Body Cream 400g", 79.99, "Body cream"))
-        personal_care.add_product(Product("Clere Cocoa Butter Lotion 400ml", 32.99, "Body lotion"))
-        personal_care.add_product(Product("Shield Women's Roll On Assorted", 24.99, "Deodorant"))
-        personal_care.add_product(Product("Nivea All Season Body Lotion 400ml", 79.99, "Body lotion"))
-        personal_care.add_product(Product("Nivea Men Roll On Assorted 50ml", 33.99, "Deodorant"))
-        personal_care.add_product(Product("Protex Deep Clean Bath Soap 150g", 21.99, "Bath soap"))
-        personal_care.add_product(Product("Sunlight Cooling Mint Bathing Soap 150g", 10.99, "Bath soap"))
-        personal_care.add_product(Product("Dettol 250ml", 25.99, "Antiseptic liquid"))
-        personal_care.add_product(Product("Woods Peppermint 100ml", 46.90, "Body spray"))
-        personal_care.add_product(Product("Med Lemon Sachet 6.1g", 7.90, "Lemon sachet"))
-        personal_care.add_product(Product("Predo Adult Diapers 30s (M/L/XL)", 317.99, "Adult diapers"))
-        personal_care.add_product(Product("Ingram's Camphor Moisture Plus 500ml", 59.99, "Moisturizing cream"))
-        personal_care.add_product(Product("Disposable Face Mask 50s", 39.99, "Face masks"))
-        self.add_category(personal_care)
-        
-        # Snacks and Sweets
-        snacks = Category("Snacks and Sweets")
-        snacks.add_product(Product("Jena Maputi 15pack", 23.99, "Popcorn"))
-        snacks.add_product(Product("Tiggies Assorted 50s", 74.99, "Snacks"))
-        snacks.add_product(Product("L Choice Assorted Biscuits", 12.90, "Biscuits"))
-        snacks.add_product(Product("Sneaker Nax Bale Pack 2kg", 39.90, "Snacks"))
-        snacks.add_product(Product("Yogueta Lollipop Split Pack 48 Pack", 59.99, "Lollipops"))
-        snacks.add_product(Product("Arenel Choice Assorted Biscuits 150g", 19.90, "Biscuits"))
-        snacks.add_product(Product("Willards Things 150g", 14.99, "Cheese snacks"))
-        snacks.add_product(Product("Stumbo Assorted Lollipops 48s", 59.99, "Lollipops"))
-        snacks.add_product(Product("Pringles Original 110g", 22.90, "Potato chips"))
-        snacks.add_product(Product("Nibble Naks 20pack", 29.99, "Snacks"))
-        snacks.add_product(Product("King Kurls Chicken Flavour 100g", 12.90, "Snacks"))
-        snacks.add_product(Product("Nik Naks 50s Pack Assorted", 54.90, "Snacks"))
-        snacks.add_product(Product("Proton Ramba Waraira Cookies 1 kg", 68.99, "Cookies"))
-        snacks.add_product(Product("Lobels Marie Biscuits", 6.90, "Biscuits"))
-        snacks.add_product(Product("Chocolate Coated Biscuits", 35.99, "Chocolate biscuits"))
-        snacks.add_product(Product("Top 10 Assorted Sweets", 9.90, "Assorted sweets"))
-        snacks.add_product(Product("Jelido Magic Rings 102 Pieces", 48.90, "Candy rings"))
-        snacks.add_product(Product("Lays Assorted Flavours 105g", 52.99, "Potato chips"))
-        snacks.add_product(Product("Charhons Biscuits 2kg", 99.99, "Biscuits"))
-        snacks.add_product(Product("Zap Nax Cheese and Onion 100g", 3.99, "Snacks"))
-        self.add_category(snacks)
-        
-        # Fresh Groceries
-        fresh = Category("Fresh Groceries")
-        fresh.add_product(Product("Economy Steak on Bone Beef Cuts 1kg", 147.99, "Fresh beef"))
-        fresh.add_product(Product("Parmalat Cheddar Cheese", 89.99, "Cheddar cheese slices"))
-        fresh.add_product(Product("Colcom Beef Polony 3kg", 299.00, "Beef polony"))
-        fresh.add_product(Product("Colcom Tastee French Polony 750g", 116.99, "French polony"))
-        fresh.add_product(Product("Colcom Chicken Polony 3kg", 219.90, "Chicken polony"))
-        fresh.add_product(Product("Bulk Mixed Pork 1kg", 128.99, "Mixed pork"))
-        fresh.add_product(Product("Potatoes 7.5kg (Small Pocket)", 219.99, "Fresh potatoes"))
-        fresh.add_product(Product("Colcom Tastee Chicken Polony 1kg", 34.90, "Chicken polony"))
-        fresh.add_product(Product("Colcom Garlic Polony 3kg", 220.00, "Garlic polony"))
-        fresh.add_product(Product("Colcom Tastee Beef Polony 1kg", 35.00, "Beef polony"))
-        fresh.add_product(Product("Wrapped Mixed Size Fresh Eggs 30", 149.99, "Fresh eggs"))
-        fresh.add_product(Product("Texas Meats Juicy Boerewors", 159.99, "Boerewors"))
-        fresh.add_product(Product("Unwrapped Small Size Fresh Eggs 30s", 99.99, "Fresh eggs"))
-        fresh.add_product(Product("Irvines Mixed Chicken Cuts 2kg", 179.99, "Mixed chicken cuts"))
-        fresh.add_product(Product("Dairibord Yoghurt 150ml", 15.99, "Yoghurt"))
-        self.add_category(fresh)
-        
-        # Stationery
-        stationery = Category("Stationery")
-        stationery.add_product(Product("Plastic Cover 3 Meter Roll", 7.99, "Plastic cover"))
-        stationery.add_product(Product("Ruler 30cm", 6.99, "Ruler"))
-        stationery.add_product(Product("A4 Bond Paper White", 126.99, "Bond paper"))
-        stationery.add_product(Product("Kakhi Cover 3 Meter Roll", 8.99, "Kakhi cover"))
-        stationery.add_product(Product("School Trunk", 750.00, "School trunk"))
-        stationery.add_product(Product("Oxford Maths Set", 34.99, "Maths set"))
-        stationery.add_product(Product("Grade 1-3 Exercise Book A4 32 Page (10 Pack)", 36.99, "Exercise books"))
-        stationery.add_product(Product("72 Page Newsprint Maths Book (10 Pack)", 69.99, "Maths books"))
-        stationery.add_product(Product("Cellotape Large 40yard", 5.99, "Cellotape"))
-        stationery.add_product(Product("Newsprint 2 Quire Counter Books (192 Page)", 28.99, "Counter books"))
-        stationery.add_product(Product("72 Page Newsprint Writing Exercise Book (10 Pack)", 69.99, "Writing exercise books"))
-        stationery.add_product(Product("Cellotape Small 20yard", 3.99, "Cellotape"))
-        stationery.add_product(Product("Eversharp Pens Set x 4", 14.99, "Pens set"))
-        stationery.add_product(Product("Newsprint 1 Quire (96 Page) Counter Book", 17.99, "Counter book"))
-        stationery.add_product(Product("HB Pencils x 12 Set", 24.99, "Pencils set"))
-        stationery.add_product(Product("Sharp Scientific Calculator", 319.99, "Scientific calculator"))
-        stationery.add_product(Product("32 Page Newsprint Plain Exercise Book (10 Pack)", 36.99, "Plain exercise books"))
-        self.add_category(stationery)
-        
-        # Baby Section
-        baby_section = Category("Baby Section")
-        baby_section.add_product(Product("Huggies Dry Comfort Jumbo Size 5 (44s)", 299.99, "Diapers"))
-        baby_section.add_product(Product("Pampers Fresh Clean Wipes 64 Pack", 31.90, "Baby wipes"))
-        baby_section.add_product(Product("Johnson and Johnson Scented Baby Jelly 325ml", 52.99, "Baby jelly"))
-        baby_section.add_product(Product("Vaseline Baby Jelly 250g", 31.90, "Baby jelly"))
-        baby_section.add_product(Product("Predo Baby Wipes Assorted 120s", 52.90, "Baby wipes"))
-        baby_section.add_product(Product("Huggies Dry Comfort Size 3 Jumbo (76)", 299.99, "Diapers"))
-        baby_section.add_product(Product("Huggies Dry Comfort Size 2 Jumbo (94)", 299.99, "Diapers"))
-        baby_section.add_product(Product("Huggies Dry Comfort Size 4 Jumbo", 299.99, "Diapers"))
-        baby_section.add_product(Product("Bennetts Aqueous Cream 500ml", 39.30, "Aqueous cream"))
-        baby_section.add_product(Product("Predo Baby Wipes Assorted 80s", 38.99, "Baby wipes"))
-        baby_section.add_product(Product("Crez Babyline Petroleum Jelly 500g", 42.99, "Petroleum jelly"))
-        baby_section.add_product(Product("Johnson and Johnson Lightly Fragranced Aqueous Cream 350ml", 39.90, "Aqueous cream"))
-        baby_section.add_product(Product("Nestle Baby Cereal with Milk Regular Wheat 250g", 34.99, "Baby cereal"))
-        baby_section.add_product(Product("Nan 2: Infant Formula Optipro 400g", 79.99, "Infant formula"))
-        baby_section.add_product(Product("Nan 1: Infant Formula Optipro 400g", 79.99, "Infant formula"))
-        self.add_category(baby_section)
+        self.categories = {
+    "Household": [
+        Product("Sta Soft Lavender 2L", 59.99, "Fabric softener"),
+        Product("Sunlight Dishwashing Liquid 750ml", 35.99, "Dishwashing liquid"),
+        Product("Nova 2-Ply Toilet Paper 9s", 49.90, "Toilet paper"),
+        Product("Domestos Thick Bleach Assorted 750ml", 39.99, "Bleach cleaner"),
+        Product("Doom Odourless Multi-Insect Killer 300ml", 32.90, "Insect killer"),
+        Product("Handy Andy Assorted 500ml", 32.99, "Multi-surface cleaner"),
+        Product("Jik Assorted 750ml", 29.99, "Disinfectant"),
+        Product("Maq Dishwashing Liquid 750ml", 35.99, "Dishwashing liquid"),
+        Product("Maq 3kg Washing Powder", 72.90, "Washing powder"),
+        Product("Maq Handwashing Powder 2kg", 78.99, "Handwashing powder"),
+        Product("Elangeni Washing Bar 1kg", 24.59, "Washing bar"),
+        Product("Vim Scourer 500g", 21.99, "Scouring pad"),
+        Product("Matches Carton (10s)", 8.99, "Matches"),
+        Product("Surf 5kg", 159.99, "Washing powder"),
+        Product("Britelite Candles 6s", 32.99, "Candles"),
+        Product("Sta Soft Assorted Refill Sachet 2L", 39.99, "Fabric softener refill"),
+        Product("Poppin Fresh Dishwashing Liquid 750ml", 22.99, "Dishwashing liquid"),
+        Product("Poppin Fresh Toilet Cleaner 500ml", 34.99, "Toilet cleaner"),
+        Product("Poppin Fresh Multi-Purpose Cleaner", 25.99, "Multi-purpose cleaner")
+    ],
+    "Personal Care": [
+        Product("Softex Toilet Tissue 1-Ply 4s", 39.99, "Toilet tissue"),
+        Product("Protex Bath Soap Assorted 150g", 21.99, "Bath soap"),
+        Product("Sona Bath Soap 300g", 13.99, "Bath soap"),
+        Product("Kiwi Black Shoe Polish 50ml", 18.99, "Shoe polish"),
+        Product("Nivea Women's Roll On Assorted 50ml", 33.99, "Deodorant"),
+        Product("Clere Lanolin Lotion 400ml", 35.99, "Body lotion"),
+        Product("Vaseline Men Petroleum Jelly 250ml", 9.99, "Petroleum jelly"),
+        Product("Vaseline Petroleum Jelly Original 250ml", 39.99, "Petroleum jelly"),
+        Product("Sunlight Bath Soap Lively Lemon 175g", 10.90, "Bath soap"),
+        Product("Shield Fresh Shower Deo", 24.99, "Deodorant"),
+        Product("Hoity Toity Ladies Spray", 22.90, "Ladies spray"),
+        Product("Brut Total Attraction Roll On", 17.90, "Deodorant"),
+        Product("Vaseline Men Lotion 400ml", 64.99, "Body lotion"),
+        Product("Shield Dry Musk Roll On 50ml", 24.99, "Deodorant"),
+        Product("Sunlight Bath Soap Juicy Orange 150g", 10.99, "Bath soap"),
+        Product("Axe Men Roll On Wild Spice", 32.99, "Deodorant"),
+        Product("Nivea Rich Nourishing Cream 400ml", 79.99, "Body cream"),
+        Product("Dawn Rich Lanolin Lotion 400ml", 24.90, "Body lotion"),
+        Product("Twinsaver 2-Ply Toilet Paper", 32.90, "Toilet paper"),
+        Product("Hoity Toity Body Lotion 400ml", 44.90, "Body lotion"),
+        Product("Axe Deo Assorted Men", 36.99, "Deodorant"),
+        Product("Stayfree Pads Scented Wings 10s", 15.99, "Sanitary pads"),
+        Product("Geisha Bath Soap", 9.90, "Bath soap"),
+        Product("Clere Berries and Cream 500ml", 39.99, "Body lotion"),
+        Product("Clere Body Cream Cocoa Butter 500ml", 39.99, "Body cream"),
+        Product("Ingram's Camphor Cream Herbal 500ml", 57.99, "Herbal cream"),
+        Product("Lifebuoy Lemon Fresh 175g", 16.99, "Bath soap"),
+        Product("Aquafresh Fresh and Minty Toothpaste 100ml", 22.99, "Toothpaste"),
+        Product("Lil Lets Pads Super Maxi Thick 8s", 13.99, "Sanitary pads"),
+        Product("Nivea Men Lotion (Assorted) 400ml", 79.99, "Body lotion"),
+        Product("Nivea Men Cream (Assorted) 400ml", 79.99, "Body cream"),
+        Product("Nivea Body Creme Deep Impact 400ml", 79.99, "Body cream"),
+        Product("Clere Berries and Creme Lotion 400ml", 35.99, "Body lotion"),
+        Product("Clere Men 400ml Lotion Assorted", 35.99, "Men's lotion"),
+        Product("Pearl/Sona Bath Soap Assorted 200g", 13.99, "Bath soap"),
+        Product("Nivea Intensive Moisturizing Creme 500ml", 79.99, "Moisturizing cream"),
+        Product("Protex for Men Assorted Bath Soap 150g", 21.99, "Bath soap"),
+        Product("Axe Roll On Assorted", 36.99, "Deodorant"),
+        Product("Satiskin Floral Bouquet 2L", 99.99, "Body wash"),
+        Product("Nivea Deep Impact Lotion 400ml", 79.99, "Body lotion"),
+        Product("Nivea Ladies Deo Pearl Beauty", 32.90, "Deodorant"),
+        Product("Nivea Rich Nourishing Lotion 400ml", 79.99, "Body lotion"),
+        Product("Nivea Deo Dry Confidence Women 150ml", 32.99, "Deodorant"),
+        Product("Dove Roll On Assorted", 26.99, "Deodorant"),
+        Product("Satiskin Foam Bath Berry Fantasy 2L", 99.99, "Foam bath"),
+        Product("Clere Glycerin 100ml", 21.99, "Glycerin"),
+        Product("Nivea Body Creme Max Hydration 400ml", 79.99, "Body cream"),
+        Product("Clere Men Body Cream Assorted 400ml", 39.99, "Men's body cream"),
+        Product("Nivea Intensive Moisturizing Lotion 400g", 79.99, "Moisturizing lotion"),
+        Product("Lux Soft Touch 175g", 21.99, "Bath soap"),
+        Product("Lifebuoy Total 10 175g", 16.99, "Bath soap"),
+        Product("Jade Bath Soap Assorted", 12.60, "Bath soap"),
+        Product("Stayfree Pads Unscented Wings 10s", 19.90, "Sanitary pads"),
+        Product("Colgate 100ml", 18.99, "Toothpaste"),
+        Product("Clere Men Fire 450ml", 39.99, "Men's lotion"),
+        Product("Shield Men's Roll On Assorted", 24.99, "Deodorant"),
+        Product("Shower to Shower Ladies Deodorant", 27.99, "Deodorant"),
+        Product("Lux Soft Caress 175g", 21.99, "Bath soap"),
+        Product("Nivea Men Revitalizing Body Cream 400g", 79.99, "Body cream"),
+        Product("Clere Cocoa Butter Lotion 400ml", 32.99, "Body lotion"),
+        Product("Shield Women's Roll On Assorted", 24.99, "Deodorant"),
+        Product("Nivea All Season Body Lotion 400ml", 79.99, "Body lotion"),
+        Product("Nivea Men Roll On Assorted 50ml", 33.99, "Deodorant"),
+        Product("Protex Deep Clean Bath Soap 150g", 21.99, "Bath soap"),
+        Product("Sunlight Cooling Mint Bathing Soap 150g", 10.99, "Bath soap"),
+        Product("Dettol 250ml", 25.99, "Antiseptic liquid"),
+        Product("Woods Peppermint 100ml", 46.90, "Body spray"),
+        Product("Med Lemon Sachet 6.1g", 7.90, "Lemon sachet"),
+        Product("Predo Adult Diapers 30s (M/L/XL)", 317.99, "Adult diapers"),
+        Product("Ingram's Camphor Moisture Plus 500ml", 59.99, "Moisturizing cream"),
+        Product("Disposable Face Mask 50s", 39.99, "Face masks")
+    ],
+    "Baby Section": [
+        Product("Huggies Dry Comfort Jumbo Size 5 (44s)", 299.99, "Diapers"),
+        Product("Pampers Fresh Clean Wipes 64 Pack", 31.90, "Baby wipes"),
+        Product("Johnson and Johnson Scented Baby Jelly 325ml", 52.99, "Baby jelly"),
+        Product("Vaseline Baby Jelly 250g", 31.90, "Baby jelly"),
+        Product("Predo Baby Wipes Assorted 120s", 52.90, "Baby wipes"),
+        Product("Huggies Dry Comfort Size 3 Jumbo (76)", 299.99, "Diapers"),
+        Product("Huggies Dry Comfort Size 2 Jumbo (94)", 299.99, "Diapers"),
+        Product("Huggies Dry Comfort Size 4 Jumbo", 299.99, "Diapers"),
+        Product("Bennetts Aqueous Cream 500ml", 39.30, "Aqueous cream"),
+        Product("Predo Baby Wipes Assorted 80s", 38.99, "Baby wipes"),
+        Product("Crez Babyline Petroleum Jelly 500g", 42.99, "Petroleum jelly"),
+        Product("Johnson and Johnson Lightly Fragranced Aqueous Cream 350ml", 39.90, "Aqueous cream"),
+        Product("Nestle Baby Cereal with Milk Regular Wheat 250g", 34.99, "Baby cereal"),
+        Product("Nan 2: Infant Formula Optipro 400g", 79.99, "Infant formula"),
+        Product("Nan 1: Infant Formula Optipro 400g", 79.99, "Infant formula")
+    ],
+    "Snacks and Sweets": [
+        Product("Jena Maputi 15pack", 23.99, "Popcorn"),
+        Product("Tiggies Assorted 50s", 74.99, "Snacks"),
+        Product("L Choice Assorted Biscuits", 12.90, "Biscuits"),
+        Product("Sneaker Nax Bale Pack 2kg", 39.90, "Snacks"),
+        Product("Yogueta Lollipop Split Pack 48 Pack", 59.99, "Lollipops"),
+        Product("Arenel Choice Assorted Biscuits 150g", 19.90, "Biscuits"),
+        Product("Willards Things 150g", 14.99, "Cheese snacks"),
+        Product("Stumbo Assorted Lollipops 48s", 59.99, "Lollipops"),
+        Product("Pringles Original 110g", 22.90, "Potato chips"),
+        Product("Nibble Naks 20pack", 29.99, "Snacks"),
+        Product("King Kurls Chicken Flavour 100g", 12.90, "Snacks"),
+        Product("Nik Naks 50s Pack Assorted", 54.90, "Snacks"),
+        Product("Proton Ramba Waraira Cookies 1 kg", 68.99, "Cookies"),
+        Product("Lobels Marie Biscuits", 6.90, "Biscuits"),
+        Product("Chocolate Coated Biscuits", 35.99, "Chocolate biscuits"),
+        Product("Top 10 Assorted Sweets", 9.90, "Assorted sweets"),
+        Product("Jelido Magic Rings 102 Pieces", 48.90, "Candy rings"),
+        Product("Lays Assorted Flavours 105g", 52.99, "Potato chips"),
+        Product("Charhons Biscuits 2kg", 99.99, "Biscuits"),
+        Product("Zap Nax Cheese and Onion 100g", 3.99, "Snacks")
+    ],
+    "Fresh Groceries": [
+        Product("Economy Steak on Bone Beef Cuts 1kg", 147.99, "Fresh beef"),
+        Product("Parmalat Cheddar Cheese", 89.99, "Cheddar cheese slices"),
+        Product("Colcom Beef Polony 3kg", 299.00, "Beef polony"),
+        Product("Colcom Tastee French Polony 750g", 116.99, "French polony"),
+        Product("Colcom Chicken Polony 3kg", 219.90, "Chicken polony"),
+        Product("Bulk Mixed Pork 1kg", 128.99, "Mixed pork"),
+        Product("Potatoes 7.5kg (Small Pocket)", 219.99, "Fresh potatoes"),
+        Product("Colcom Tastee Chicken Polony 1kg", 34.90, "Chicken polony"),
+        Product("Colcom Garlic Polony 3kg", 220.00, "Garlic polony"),
+        Product("Colcom Tastee Beef Polony 1kg", 35.00, "Beef polony"),
+        Product("Wrapped Mixed Size Fresh Eggs 30", 149.99, "Fresh eggs"),
+        Product("Texas Meats Juicy Boerewors", 159.99, "Boerewors"),
+        Product("Unwrapped Small Size Fresh Eggs 30s", 99.99, "Fresh eggs"),
+        Product("Irvines Mixed Chicken Cuts 2kg", 179.99, "Mixed chicken cuts"),
+        Product("Dairibord Yoghurt 150ml", 15.99, "Yoghurt")
+    ],
+        "Stationery": [
+        Product("Plastic Cover 3 Meter Roll", 7.99, "Plastic cover"),
+        Product("Ruler 30cm", 6.99, "Ruler"),
+        Product("A4 Bond Paper White", 126.99, "Bond paper"),
+        Product("Kakhi Cover 3 Meter Roll", 8.99, "Kakhi cover"),
+        Product("School Trunk", 750.00, "School trunk"),
+        Product("Oxford Maths Set", 34.99, "Maths set"),
+        Product("Grade 1-3 Exercise Book A4 32 Page (10 Pack)", 36.99, "Exercise books"),
+        Product("72 Page Newsprint Maths Book (10 Pack)", 69.99, "Maths books"),
+        Product("Cellotape Large 40yard", 5.99, "Cellotape"),
+        Product("Newsprint 2 Quire Counter Books (192 Page)", 28.99, "Counter books"),
+        Product("72 Page Newsprint Writing Exercise Book (10 Pack)", 69.99, "Writing exercise books"),
+        Product("Cellotape Small 20yard", 3.99, "Cellotape"),
+        Product("Eversharp Pens Set x 4", 14.99, "Pens set"),
+        Product("Newsprint 1 Quire (96 Page) Counter Book", 17.99, "Counter book"),
+        Product("HB Pencils x 12 Set", 24.99, "Pencils set"),
+        Product("Sharp Scientific Calculator", 319.99, "Scientific calculator"),
+        Product("32 Page Newsprint Plain Exercise Book (10 Pack)", 36.99, "Plain exercise books"),
+        "Pantry": [
+        Product("Ace Instant Porridge 1kg Assorted", 27.99, "Instant porridge mix"),
+        Product("All Gold Tomato Sauce 700g", 44.99, "Tomato sauce"),
+        Product("Aromat Original 50g", 24.99, "Seasoning"),
+        Product("Bakers Inn Bread", 23.99, "Brown loaf bread"),
+        Product("Bakers Inn White Loaf", 23.99, "White loaf bread"),
+        Product("Bella Macaroni 3kg", 82.99, "Macaroni pasta"),
+        Product("Bisto Gravy 125g", 19.99, "Gravy mix"),
+        Product("Blue Band Margarine 500g", 44.99, "Margarine"),
+        Product("Blue Ribbon Self Raising 2kg", 37.99, "Self-raising flour"),
+        Product("Bokomo Cornflakes 1kg", 54.90, "Cornflakes"),
+        Product("Bullbrand Corned Beef 300g", 39.99, "Corned beef"),
+        Product("Buttercup Margarine 500g", 44.99, "Margarine"),
+        Product("Cashel Valley Baked Beans 400g", 18.99, "Baked beans"),
+        Product("Cerevita 500g", 69.99, "Cereal"),
+        Product("Cookmore Cooking Oil 2L", 67.99, "Cooking oil"),
+        Product("Cross and Blackwell Mayonnaise 700g", 49.99, "Mayonnaise"),
+        Product("Dried Kapenta 1kg", 134.99, "Dried fish"),
+        Product("Ekonol Rice 5kg", 119.29, "Rice"),
+        Product("Fattis Macaroni 500g", 22.99, "Macaroni"),
+        Product("Gloria Self Raising Flour 5kg", 79.90, "Self-raising flour"),
+        Product("Jungle Oats 1kg", 44.99, "Oats"),
+        Product("Knorr Brown Onion Soup 50g", 7.99, "Onion soup mix"),
+        Product("Lucky Star Pilchards in Tomato Sauce 155g", 17.99, "Pilchards"),
+        Product("Mahatma Rice 2kg", 52.99, "Rice"),
+        Product("Peanut Butter 350ml", 19.99, "Peanut butter"),
+        Product("Roller Meal 10kg- Zim Meal", 136.99, "Maize meal")
+    ],
+"Beverages": [
+        Product("Stella Teabags 100 Pack", 42.99, "Tea bags"),
+        Product("Mazoe Raspberry 2 Litres", 67.99, "Fruit drink"),
+        Product("Cremora Creamer 750g", 72.99, "Coffee creamer"),
+        Product("Everyday Milk Powder 400g", 67.99, "Milk powder"),
+        Product("Freshpack Rooibos 80s", 84.99, "Rooibos tea"),
+        Product("Nestle Gold Cross Condensed Milk 385g", 29.99, "Condensed milk"),
+        Product("Pine Nut Soft Drink 2L", 37.99, "Soft drink"),
+        Product("Mazoe Blackberry 2L", 68.99, "Fruit drink"),
+        Product("Quench Mango 2L", 32.99, "Fruit drink"),
+        Product("Coca Cola 2L", 39.99, "Soft drink"),
+        Product("Pfuko Dairibord Maheu 500ml", 14.99, "Maheu drink"),
+        Product("Sprite 2 Litres", 37.99, "Soft drink"),
+        Product("Pepsi (500ml x 24)", 178.99, "Soft drink pack"),
+        Product("Probands Milk 500ml", 20.99, "Steri milk"),
+        Product("Lyons Hot Chocolate 125g", 42.99, "Hot chocolate"),
+        Product("Dendairy Long Life Full Cream Milk 1 Litre", 28.99, "Long life milk"),
+        Product("Joko Tea Bags 100", 55.99, "Tea bags"),
+        Product("Cool Splash 5 Litre Orange Juice", 99.99, "Orange juice"),
+        Product("Cremora Coffee Creamer 750g", 72.99, "Coffee creamer"),
+        Product("Fanta Orange 2 Litres", 37.99, "Soft drink"),
+        Product("Quench Mango 5L", 92.25, "Fruit drink"),
+        Product("Ricoffy Coffee 250g", 52.99, "Coffee"),
+        Product("Dendairy Low Fat Long Life Milk", 28.99, "Low fat milk"),
+        Product("Quickbrew Teabags 50", 25.99, "Teabags"),
+        Product("Fruitrade 2L Orange Juice", 32.90, "Orange juice"),
+        Product("Mazoe Orange Crush 2L", 69.99, "Fruit drink"),
+        Product("Joko Rooibos Tea Bags 80s", 84.99, "Rooibos tea")
+    ],
+        "checkout_data": user.checkout_data
+    }
 
+def deserialize_user(data, phone):
+    user = User(data['payer_name'], phone)
+    user.cart = [(Product(p['name'], p['price'], p['description']), p['quantity']) for p in data.get('cart', [])]
+    user.checkout_data = data.get('checkout_data', {})
+    return user
 
-# DB State helpers
-def get_user_state(sender):
-    db = SessionLocal()
-    try:
-        db_state = db.query(UserStateDB).filter_by(phone=sender).first()
-        if db_state:
-            state = json.loads(db_state.state_data)
-            state["order_system"] = OrderSystem()
-            u = state.get("user")
-            if u:
-                user = User(u['payer_name'], u['payer_phone'])
-                user.cart = [(Product(p['name'], p['price'], p['description']), q) for p, q in u.get('cart',[])]
-                user.checkout_data = u.get('checkout_data', {})
-                state["user"] = user
-            else:
-                state["user"] = None
-            return state
+@app.route("/webhook", methods=["POST"])
+def webhook():
+    data = request.get_json()["entry"][0]["changes"][0]["value"]["messages"][0]
+    phone_id = request.get_json()["entry"][0]["changes"][0]["value"]["metadata"]["phone_number_id"]
+    message_handler(data, phone_id)
+    return jsonify({"status": "ok"}), 200
+
+def get_action(current_state, prompt, user_data):
+    action_mapping = {
+        "ask_name": handle_ask_name,
+        "save_name": handle_save_name,
+        "choose_category": handle_choose_category,
+        "choose_product": handle_choose_product,
+        "ask_quantity": handle_ask_quantity,
+        "post_add_menu": handle_post_add_menu,
+        "get_area": handle_get_area,
+        "ask_checkout": handle_ask_checkout,
+        "get_receiver_name": handle_get_receiver_name,
+        "get_address": handle_get_address,
+        "get_id": handle_get_id,
+        "get_phone": handle_get_phone,
+        "confirm_details": handle_confirm_details,
+        "ask_place_another_order": handle_ask_place_another_order,
+    }
+    handler = action_mapping.get(current_state, handle_default)
+    return handler(prompt, user_data)
+
+def message_handler(data, phone_id):
+    sender = data["from"]
+    prompt = data["text"]["body"].strip()
+
+    # Retrieve from Redis
+    raw_data = redis_client.get(sender)
+    if raw_data:
+        user_data = json.loads(raw_data)
+        user_data['order_system'] = OrderSystem()
+        if 'user' in user_data:
+            user_data['user'] = deserialize_user(user_data['user'], sender)
+    else:
+        user_data = {
+            "step": "ask_name",
+            "order_system": OrderSystem()
+        }
+
+    user_data['sender'] = sender
+    user_data['phone_id'] = phone_id
+    user_data['delivery_areas'] = {
+        "Harare": 240, "Chitungwiza": 300, "Mabvuku": 300, "Ruwa": 300,
+        "Domboshava": 250, "Southlea": 300, "Southview": 300, "Epworth": 300,
+        "Mazoe": 300, "Chinhoyi": 350, "Banket": 350, "Rusape": 400, "Dema": 300
+    }
+
+    step = user_data["step"]
+    get_action(step, prompt, user_data)
+
+    # Save to Redis
+    to_store = user_data.copy()
+    to_store.pop("order_system", None)
+    if 'user' in to_store:
+        to_store['user'] = serialize_user(to_store['user'])
+    redis_client.set(sender, json.dumps(to_store))
+
+@app.route("/", methods=["GET"])
+def index():
+    return render_template("connected.html")
+
+# Existing handler functions here: handle_ask_name, handle_save_name, etc.
+
+def handle_ask_name(prompt, user_data):
+    send("Hello! Welcome to Zimbogrocer. What's your name?", user_data['sender'], user_data['phone_id'])
+    user_data['step'] = 'save_name'
+
+def handle_save_name(prompt, user_data):
+    user = User(prompt.title(), user_data['sender'])
+    user_data['user'] = user
+    send(f"Thanks {user.payer_name}! Please select a category:
+{list_categories(user_data['order_system'])}", user_data['sender'], user_data['phone_id'])
+    user_data['step'] = 'choose_category'
+
+def handle_choose_category(prompt, user_data):
+    if prompt.isalpha() and len(prompt) == 1:
+        idx = ord(prompt.upper()) - 65
+        categories = user_data['order_system'].list_categories()
+        if 0 <= idx < len(categories):
+            cat = categories[idx]
+            user_data["selected_category"] = cat
+            send(f"Products in {cat}:
+{list_products(user_data['order_system'], cat)}
+Select a product by number.", user_data['sender'], user_data['phone_id'])
+            user_data["step"] = "choose_product"
         else:
-            return {"step": "ask_name", "order_system": OrderSystem()}
-    finally:
-        db.close()
+            send("Invalid category. Try again:
+" + list_categories(user_data['order_system']), user_data['sender'], user_data['phone_id'])
+    else:
+        send("Please enter a valid category letter (e.g., A, B, C).", user_data['sender'], user_data['phone_id'])
 
-def save_user_state(sender, state):
-    db = SessionLocal()
+def handle_choose_product(prompt, user_data):
     try:
-        state_copy = dict(state)
-        if "user" in state_copy and isinstance(state_copy["user"], User):
-            user = state_copy["user"]
-            state_copy["user"] = {
-                "payer_name": user.payer_name,
-                "payer_phone": user.payer_phone,
-                "cart": [({"name": p.name, "price": p.price, "description": p.description}, q) for p, q in user.cart],
-                "checkout_data": user.checkout_data
-            }
-        state_copy.pop("order_system", None)
-        json_data = json.dumps(state_copy)
-        record = db.query(UserStateDB).filter_by(phone=sender).first()
-        if record:
-            record.state_data = json_data
+        index = int(prompt) - 1
+        cat = user_data["selected_category"]
+        products = user_data['order_system'].list_products(cat)
+        if 0 <= index < len(products):
+            user_data["selected_product"] = products[index]
+            send(f"You selected {products[index].name}. How many would you like to add?", user_data['sender'], user_data['phone_id'])
+            user_data["step"] = "ask_quantity"
         else:
-            record = UserStateDB(phone=sender, state_data=json_data)
-            db.add(record)
-        db.commit()
-    finally:
-        db.close()
+            send("Invalid product number. Try again.", user_data['sender'], user_data['phone_id'])
+    except Exception:
+        send("Please enter a valid product number.", user_data['sender'], user_data['phone_id'])
 
-# WhatsApp send
-def send(answer, sender, phone_id):
+def handle_ask_quantity(prompt, user_data):
+    user = user_data['user']
+    try:
+        qty = int(prompt)
+        prod = user_data["selected_product"]
+        if qty < 1:
+            raise ValueError
+        user.add_to_cart(prod, qty)
+        send("Item added to your cart.
+What would you like to do next?
+- View cart
+- Clear cart
+- Remove <item>
+- Add Item", user_data['sender'], user_data['phone_id'])
+        user_data["step"] = "post_add_menu"
+    except Exception:
+        send("Please enter a valid number for quantity (e.g., 1, 2, 3).", user_data['sender'], user_data['phone_id'])
+
+def handle_post_add_menu(prompt, user_data):
+    user = user_data['user']
+    delivery_areas = user_data['delivery_areas']
+    if prompt.lower() == "view cart":
+        cart_message = show_cart(user)
+        send(cart_message + "
+
+Please select your delivery area:
+" + list_delivery_areas(delivery_areas), user_data['sender'], user_data['phone_id'])
+        user_data["step"] = "get_area"
+    elif prompt.lower() == "clear cart":
+        user.clear_cart()
+        send("Cart cleared.
+What would you like to do next?
+- View cart
+- Add Item", user_data['sender'], user_data['phone_id'])
+        user_data["step"] = "post_add_menu"
+    elif prompt.lower().startswith("remove "):
+        item = prompt[7:].strip()
+        user.remove_from_cart(item)
+        send(f"{item} removed from cart.
+{show_cart(user)}
+What would you like to do next?
+- View cart
+- Add Item", user_data['sender'], user_data['phone_id'])
+        user_data["step"] = "post_add_menu"
+    elif prompt.lower() in ["add", "add item", "add another", "add more"]:
+        send("Sure! Here are the available categories:
+" + list_categories(user_data['order_system']), user_data['sender'], user_data['phone_id'])
+        user_data["step"] = "choose_category"
+    else:
+        send("Sorry, I didn't understand. You can:
+- View Cart
+- Clear Cart
+- Remove <item>
+- Add Item", user_data['sender'], user_data['phone_id'])
+
+def handle_get_area(prompt, user_data):
+    user = user_data['user']
+    delivery_areas = user_data['delivery_areas']
+    area = prompt.strip().title()
+    if area in delivery_areas:
+        user.checkout_data["delivery_area"] = area
+        fee = delivery_areas[area]
+        user.checkout_data["delivery_fee"] = fee
+        delivery_product = Product("__Delivery__", fee, f"Delivery to {area}")
+        user.add_to_cart(delivery_product, 1)
+        send(show_cart(user) + "
+Would you like to checkout? (yes/no)", user_data['sender'], user_data['phone_id'])
+        user_data["step"] = "ask_checkout"
+    else:
+        send(f"Invalid area. Please choose from:
+{list_delivery_areas(delivery_areas)}", user_data['sender'], user_data['phone_id'])
+
+def handle_ask_checkout(prompt, user_data):
+    if prompt.lower() in ["yes", "y"]:
+        send("Please enter the receiver’s full name.", user_data['sender'], user_data['phone_id'])
+        user_data["step"] = "get_receiver_name"
+    elif prompt.lower() in ["no", "n"]:
+        send("What would you like to do next?
+- View cart
+- Clear cart
+- Remove <item>
+- Add Item", user_data['sender'], user_data['phone_id'])
+        user_data["step"] = "post_add_menu"
+    else:
+        send("Please respond with 'yes' or 'no'.", user_data['sender'], user_data['phone_id'])
+
+def handle_get_receiver_name(prompt, user_data):
+    user = user_data['user']
+    user.checkout_data["receiver_name"] = prompt
+    send("Enter the delivery address.", user_data['sender'], user_data['phone_id'])
+    user_data["step"] = "get_address"
+
+def handle_get_address(prompt, user_data):
+    user = user_data['user']
+    user.checkout_data["address"] = prompt
+    send("Enter receiver’s ID number.", user_data['sender'], user_data['phone_id'])
+    user_data["step"] = "get_id"
+
+def handle_get_id(prompt, user_data):
+    user = user_data['user']
+    user.checkout_data["id_number"] = prompt
+    send("Enter receiver’s phone number.", user_data['sender'], user_data['phone_id'])
+    user_data["step"] = "get_phone"
+
+def handle_get_phone(prompt, user_data):
+    user = user_data['user']
+    user.checkout_data["phone"] = prompt
+    details = user.checkout_data
+    confirm_message = (
+        f"Please confirm the details below:
+
+"
+        f"Name: {details['receiver_name']}
+"
+        f"Address: {details['address']}
+"
+        f"ID: {details['id_number']}
+"
+        f"Phone: {details['phone']}
+
+"
+        "Are these correct? (yes/no)"
+    )
+    send(confirm_message, user_data['sender'], user_data['phone_id'])
+    user_data["step"] = "confirm_details"
+
+def handle_confirm_details(prompt, user_data):
+    user = user_data['user']
+    if prompt.lower() in ["yes", "y"]:
+        order_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+        payment_info = (
+            f"Please make payment using one of the following options:
+
+"
+            f"1. EFT
+Bank: FNB
+Name: Zimbogrocer (Pty) Ltd
+Account: 62847698167
+Branch Code: 250655
+Swift Code: FIRNZAJJ
+Reference: {order_id}
+"
+            f"Please remember to send the Proof of Payment as soon as you make payment.
+Have a nice day.
+
+"
+            f"2. Pay at supermarkets using Mukuru wicode
+"
+            f"3. World Remit Transfer (on request)
+"
+            f"4. Western Union (on request)
+
+"
+            f"Order ID: {order_id}"
+        )
+        send(
+            f"Order placed! 🛒
+Order ID: {order_id}
+
+"
+            f"{show_cart(user)}
+
+"
+            f"Receiver: {user.checkout_data['receiver_name']}
+"
+            f"Address: {user.checkout_data['address']}
+"
+            f"Phone: {user.checkout_data['phone']}
+
+"
+            f"{payment_info}
+
+Would you like to place another order? (yes/no)",
+            user_data['sender'], user_data['phone_id']
+        )
+        user.clear_cart()
+        user_data["step"] = "ask_place_another_order"
+    else:
+        send("Okay, let's correct the details. What's the receiver’s full name?", user_data['sender'], user_data['phone_id'])
+        user_data["step"] = "get_receiver_name"
+
+def handle_ask_place_another_order(prompt, user_data):
+    if prompt.lower() in ["yes", "y"]:
+        send("Great! Please select a category:
+" + list_categories(user_data['order_system']), user_data['sender'], user_data['phone_id'])
+        user_data["step"] = "choose_category"
+    else:
+        send("Okay. Have a good day! 😊", user_data['sender'], user_data['phone_id'])
+        user_data["step"] = "ask_name"
+
+def handle_default(prompt, user_data):
+    send("Sorry, something went wrong. Please try again.", user_data['sender'], user_data['phone_id'])
+
+def list_categories(order_system):
+    return "
+".join([f"{chr(65+i)}. {cat}" for i, cat in enumerate(order_system.list_categories())])
+
+def list_products(order_system, category_name):
+    products = order_system.list_products(category_name)
+    return "
+".join([f"{i+1}. {p.name} - R{p.price:.2f}: {p.description}" for i, p in enumerate(products)])
+
+def show_cart(user):
+    cart = user.get_cart_contents()
+    if not cart:
+        return "Your cart is empty."
+    lines = [f"{p.name} x{q} = R{p.price*q:.2f}" for p, q in cart]
+    total = sum(p.price*q for p, q in cart)
+    return "
+".join(lines) + f"
+
+Total: R{total:.2f}"
+
+def list_delivery_areas(delivery_areas):
+    return "
+".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()])
+# Paste your full handler implementations below this line
+
+if __name__ == "__main__":
+    app.run(debug=True, port=8000)import google.generativeai as genai
+from flask import Flask, request, jsonify, render_template
+import requests
+import os
+import fitz
+import sched
+import time
+import logging
+from mimetypes import guess_type
+from datetime import datetime,timedelta
+from urlextract import URLExtract
+from training import instructions, product_images
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, func
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
+logging.basicConfig(level=logging.INFO)
+
+db=False
+wa_token=os.environ.get("WA_TOKEN") # Whatsapp API Key
+gen_api=os.environ.get("GEN_API") # Gemini API Key
+owner_phone=os.environ.get("OWNER_PHONE") # Owner's phone number with countrycode
+model_name="gemini-2.0-flash"
+
+app = Flask(__name__)
+genai.configure(api_key=gen_api)
+
+class CustomURLExtract(URLExtract):
+    def _get_cache_file_path(self):
+        cache_dir = "/tmp"
+        return os.path.join(cache_dir, "tlds-alpha-by-domain.txt")
+
+extractor = CustomURLExtract(limit=1)
+
+generation_config = {
+  "temperature": 1,
+  "top_p": 0.95,
+  "top_k": 0,
+  "max_output_tokens": 8192,
+}
+
+safety_settings = [
+  {"category": "HARM_CATEGORY_HARASSMENT","threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+  {"category": "HARM_CATEGORY_HATE_SPEECH","threshold": "BLOCK_MEDIUM_AND_ABOVE"},  
+  {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+  {"category": "HARM_CATEGORY_DANGEROUS_CONTENT","threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+]
+
+model = genai.GenerativeModel(model_name=model_name,
+                              generation_config=generation_config,
+                              safety_settings=safety_settings)
+
+convo = model.start_chat(history=[])
+convo.send_message(instructions.instructions)
+
+
+def send(answer,sender,phone_id):
     url = f"https://graph.facebook.com/v19.0/{phone_id}/messages"
     headers = {
         'Authorization': f'Bearer {wa_token}',
         'Content-Type': 'application/json'
     }
+    type="text"
+    body="body"
+    content=answer
+    image_urls=product_images.image_urls
+    if "product_image" in answer:
+        for product in image_urls.keys():
+            if product in answer:
+                answer=answer.replace("product_image",image_urls[product])
+                urls=extractor.find_urls(answer)
+                if len(urls)>0:
+                    mime_type,_=guess_type(urls[0].split("/")[-1])
+                    type=mime_type.split("/")[0]
+                    body="link"
+                    content=urls[0]
+                    answer=answer.replace(urls[0],"\n")
+                    break
     data = {
         "messaging_product": "whatsapp",
         "to": sender,
-        "type": "text",
-        "text": {"body": answer}
-    }
-    try:
-        resp = requests.post(url, headers=headers, json=data, timeout=10)
-        logging.info("WhatsApp send response: %s %s", resp.status_code, resp.text)
-    except Exception as e:
-        logging.error("WhatsApp send error: %s", e)
+        "type": type,
+        type: {
+            body:content,
+            **({"caption":answer} if type!="text" else {})
+            },
+        }
+    response = requests.post(url, headers=headers, json=data)
+    if db:
+        insert_chat("Bot",answer)
+    return response
 
-# Message handling
-def message_handler(data, phone_id):
-    sender = data.get("from")
-    prompt = data.get("text", {}).get("body", "").strip()
-    user_data = get_user_state(sender)
-    step = user_data.get("step", "ask_name")
-    order_system = user_data.get("order_system", OrderSystem())
-    user = user_data.get("user")
+def remove(*file_paths):
+    for file in file_paths:
+        if os.path.exists(file):
+            os.remove(file)
+        else:pass
 
-    def list_categories():
-        return "\n".join([f"{chr(65+i)}. {cat}" for i, cat in enumerate(order_system.list_categories())])
-    def list_products(category_name):
-        products = order_system.list_products(category_name)
-        return "\n".join([f"{i+1}. {p.name} - R{p.price:.2f}: {p.description}" for i, p in enumerate(products)])
-    def show_cart(user):
-        cart = user.get_cart_contents()
-        if not cart:
-            return "Your cart is empty."
-        lines = [f"{p.name} x{q} = R{p.price*q:.2f}" for p, q in cart]
-        total = sum(p.price*q for p, q in cart)
-        return "\n".join(lines) + f"\n\nTotal: R{total:.2f}"
+if db:
+    db_url=os.environ.get("DB_URL") # Database URL
+    engine=create_engine(db_url)
+    Session=sessionmaker(bind=engine)
+    Base=declarative_base()
+    scheduler = sched.scheduler(time.time, time.sleep)
+    report_time = datetime.now().replace(hour=22, minute=00, second=0, microsecond=0)
 
-      delivery_areas = {
-        "Harare": 240,
-        "Chitungwiza": 300,
-        "Mabvuku": 300,
-        "Ruwa": 300,
-        "Domboshava": 250,
-        "Southlea": 300,
-        "Southview": 300,
-        "Epworth": 300,
-        "Mazoe": 300,
-        "Chinhoyi": 350,
-        "Banket": 350,
-        "Rusape": 400,
-        "Dema": 300
-    }
+    class Chat(Base):
+        __tablename__ = 'chats'
+        Chat_no = Column(Integer, primary_key=True)
+        Sender = Column(String(255), nullable=False)
+        Message = Column(String, nullable=False)
+        Chat_time = Column(DateTime, default=datetime.utcnow)
 
+    logging.info("Creating tables if they do not exist...")
+    Base.metadata.create_all(engine)
 
-    if step == "ask_name":
-        send("Hello! Welcome to Zimbogrocer. What's your name?", sender, phone_id)
-        user_data["step"] = "save_name"
-    elif step == "save_name":
-        user = User(prompt.title(), sender)
-        user_data["user"] = user
-        send(f"Thanks {user.payer_name}! Please select a category:\n{list_categories()}", sender, phone_id)
-        user_data["step"] = "choose_category"
-    elif step == "choose_category":
-        idx = ord(prompt.upper()) - 65
-        categories = order_system.list_categories()
-        if 0 <= idx < len(categories):
-            cat = categories[idx]
-            user_data["selected_category"] = cat
-            send(f"Products in {cat}:\n{list_products(cat)}\nSelect a product by number.", sender, phone_id)
-            user_data["step"] = "choose_product"
-        else:
-            send("Invalid category. Try again:\n" + list_categories(), sender, phone_id)
-    elif step == "choose_product":
+    def insert_chat(sender, message):
+        logging.info("Inserting chat into database")
         try:
-            index = int(prompt) - 1
-            cat = user_data["selected_category"]
-            products = order_system.list_products(cat)
-            if 0 <= index < len(products):
-                user_data["selected_product"] = products[index]
-                send(f"You selected {products[index].name}. How many would you like to add?", sender, phone_id)
-                user_data["step"] = "ask_quantity"
+            session = Session()
+            chat = Chat(Sender=sender, Message=message)
+            session.add(chat)
+            session.commit()
+            logging.info("Chat inserted successfully")
+        except Exception as e:
+            logging.error(f"Error inserting chat: {e}")
+            session.rollback()
+        finally:
+            session.close()
+
+    def get_chats(sender):
+        try:
+            session = Session()
+            chats = session.query(Chat.Message).filter(Chat.Sender == sender).all()
+            return chats
+        except:pass
+        finally:
+            session.close()
+
+    def delete_old_chats():
+        try:
+            session = Session()
+            cutoff_date = datetime.now() - timedelta(days=14)
+            session.query(Chat).filter(Chat.Chat_time < cutoff_date).delete()
+            session.commit()
+            logging.info("Old chats deleted successfully")
+        except:
+            session.rollback()
+        finally:
+            session.close()
+
+    def create_report(phone_id):
+        logging.info("Creating report")
+        try:
+            today = datetime.today().strftime('%d-%m-%Y')
+            session = Session()
+            query = session.query(Chat.Message).filter(func.date_trunc('day', Chat.Chat_time) == today).all()
+            if query:
+                chats = '\n\n'.join(query)
+                send(chats, owner_phone, phone_id)
+        except Exception as e:
+            logging.error(f"Error creating report: {e}")
+        finally:
+            session.close()
+            
+else:pass
+
+def message_handler(data,phone_id):
+    sender=data["from"]
+    if data["type"] == "text":
+        prompt = data["text"]["body"]
+        if db:insert_chat(owner_phone,prompt)
+        convo.send_message(prompt)
+    else:
+        media_url_endpoint = f'https://graph.facebook.com/v19.0/{data[data["type"]]["id"]}/'
+        headers = {'Authorization': f'Bearer {wa_token}'}
+        media_response = requests.get(media_url_endpoint, headers=headers)
+        media_url = media_response.json()["url"]
+        media_download_response = requests.get(media_url, headers=headers)
+        if data["type"] == "audio":
+            filename = "/tmp/temp_audio.mp3"
+        elif data["type"] == "image":
+            filename = "/tmp/temp_image.jpg"
+        elif data["type"] == "document":
+            doc=fitz.open(stream=media_download_response.content,filetype="pdf")
+            for _,page in enumerate(doc):
+                destination="/tmp/temp_image.jpg"
+                pix = page.get_pixmap()
+                pix.save(destination)
+                file = genai.upload_file(path=destination,display_name="tempfile")
+                response = model.generate_content(["Read this document carefully and explain it in detail",file])
+                answer=response._result.candidates[0].content.parts[0].text
+                convo.send_message(f'''Direct image input has limitations,
+                                    so this message is created by an llm model based on the document send by the user, 
+                                    reply to the customer assuming you saw that document.
+                                    (Warn the customer and stop the chat if it is not related to the business): {answer}''')
+                remove(destination)
+        else:send("This format is not Supported by the bot ☹",sender,phone_id)
+        if data["type"] == "image" or data["type"] == "audio":
+            with open(filename, "wb") as temp_media:
+                temp_media.write(media_download_response.content)
+            file = genai.upload_file(path=filename,display_name="tempfile")
+            if data["type"] == "image":
+                response = model.generate_content(["What is in this image?",file])
+                answer=response.text
+                convo.send_message(f'''Customer has sent an image,
+                                    So here is the llm's reply based on the image sent by the customer:{answer}\n\n''')
+                urls=extractor.find_urls(convo.last.text)
+                if len(urls)>0:
+                    headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
+                    response=requests.get(urls[0],headers=headers)
+                    img_path="/tmp/prod_image.jpg"
+                    with open(img_path, "wb") as temp_media:
+                        temp_media.write(response.content)
+                    img=genai.upload_file(path=img_path,display_name="prodfile")
+                    response=model.generate_content(["Is the things in both the images are exactly same? Explain in detail",img,file])
+                    answer=response.text
+                    convo.send_message(f'''This is the message from AI after comparing the two images: {answer}''')
             else:
-                send("Invalid product number. Try again.", sender, phone_id)
-        except Exception:
-            send("Please enter a valid number.", sender, phone_id)
-    elif step == "ask_quantity":
-        try:
-            qty = int(prompt)
-            prod = user_data["selected_product"]
-            user.add_to_cart(prod, qty)
-            user_data["user"] = user
-            send("Item added to your cart.\nWhat would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Add Item", sender, phone_id)
-            user_data["step"] = "post_add_menu"
-        except Exception:
-            send("Please enter a valid number for quantity.", sender, phone_id)
-    elif step == "post_add_menu":
-        if prompt.lower() == "view cart":
-            cart_message = show_cart(user)
-            send(cart_message, sender, phone_id)
-            send("What would you like to do next?\n- Add Item\n- Checkout\n- Clear cart\n- Remove <item>", sender, phone_id)
-        elif prompt.lower() == "clear cart":
-            user.clear_cart()
-            user_data["user"] = user
-            send("Cart cleared.", sender, phone_id)
-            send("What would you like to do next?\n- Add Item\n- View cart", sender, phone_id)
-        elif prompt.lower().startswith("remove "):
-            item = prompt[7:].strip()
-            user.remove_from_cart(item)
-            user_data["user"] = user
-            send(f"{item} removed from cart.\n{show_cart(user)}", sender, phone_id)
-            send("What would you like to do next?\n- Add Item\n- View cart", sender, phone_id)
-        elif prompt.lower() in ["add", "add item", "add another", "add more"]:
-            send("Sure! Here are the available categories:\n" + list_categories(), sender, phone_id)
-            user_data["step"] = "choose_category"
-        else:
-            send("Sorry, I didn't understand. You can:\n- View Cart\n- Clear Cart\n- Remove <item>\n- Add Item", sender, phone_id)
-    # Add more steps for checkout, delivery, etc. as needed
-
-    save_user_state(sender, user_data)
-
-# Index route for testing
-@app.route("/", methods=["GET"])
+                response = model.generate_content(["What is the content of this audio file?",file])
+                answer=response.text
+                convo.send_message(f'''Direct media input has limitations,
+                                            so this message is created by an llm model based on the audio send by the user, 
+                                            reply to the customer assuming you heard that audio.
+                                            (Warn the customer and stop the chat if it is not related to the business): {answer}''')
+            remove("/tmp/temp_image.jpg","/tmp/temp_audio.mp3","/tmp/prod_image.jpg")
+        files=genai.list_files()
+        for file in files:
+            file.delete()
+    reply=convo.last.text
+    if "unable_to_solve_query" in reply:
+        send(f"customer {sender} is not satisfied", owner_phone, phone_id)
+        reply=reply.replace("unable_to_solve_query",'\n')
+        send(reply, sender, phone_id)
+    else:send(reply,sender,phone_id)
+    if db:
+        scheduler.enterabs(report_time.timestamp(), 1, create_report, (phone_id,))
+        scheduler.run(blocking=False)
+        delete_old_chats()
+        
+@app.route("/", methods=["GET", "POST"])
 def index():
-    return "Bot is running!"
+    return render_template("connected.html")
 
-# Robust webhook handler
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
     if request.method == "GET":
@@ -509,23 +874,14 @@ def webhook():
         challenge = request.args.get("hub.challenge")
         if mode == "subscribe" and token == "BOT":
             return challenge, 200
-        return "Failed", 403
+        else:
+            return "Failed", 403
     elif request.method == "POST":
-        payload = request.get_json()
-        logging.info("Webhook POST payload: %s", payload)
         try:
-            value = payload["entry"][0]["changes"][0]["value"]
-            messages = value.get("messages")
-            if not messages:
-                return jsonify({"status": "no messages"}), 200
-            data = messages[0]
-            phone_id = value["metadata"]["phone_number_id"]
-            message_handler(data, phone_id)
-            return jsonify({"status": "ok"}), 200
-        except Exception as e:
-            logging.exception("Webhook error: %s", e)
-            return jsonify({"status": "error", "message": str(e)}), 400
-
+            data = request.get_json()["entry"][0]["changes"][0]["value"]["messages"][0]
+            phone_id=request.get_json()["entry"][0]["changes"][0]["value"]["metadata"]["phone_number_id"]
+            message_handler(data,phone_id)
+        except :pass
+        return jsonify({"status": "ok"}), 200
 if __name__ == "__main__":
-    Base.metadata.create_all(bind=engine)
     app.run(debug=True, port=8000)
