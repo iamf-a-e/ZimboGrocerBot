@@ -3,33 +3,30 @@ import logging
 import requests
 import random
 import string
-import json
+from datetime import datetime
 from flask import Flask, request, jsonify, render_template
-from redis import StrictRedis
+from pymongo import MongoClient
+from bson.objectid import ObjectId
+from orders import OrderSystem 
+import traceback
+from products import Category,Product
 
-# Setup logging
+
 logging.basicConfig(level=logging.INFO)
 
-# Environment Variables
-wa_token = os.environ.get("WA_TOKEN")
-gen_api = os.environ.get("GEN_API")
+# Environment variables
+wa_token = os.environ.get("WA_TOKEN")  # WhatsApp API Key
+phone_id = os.environ.get("PHONE_ID") 
+
+gen_api = os.environ.get("GEN_API")    # Gemini API Key
 owner_phone = os.environ.get("OWNER_PHONE")
-owner_phone_1 = os.environ.get("OWNER_PHONE_1")
-owner_phone_2 = os.environ.get("OWNER_PHONE_2")
-owner_phone_3 = os.environ.get("OWNER_PHONE_3")
-owner_phone_4 = os.environ.get("OWNER_PHONE_4")
+mongo_uri = os.environ.get("MONGO_URI", "mongodb+srv://admin:kuda123@cluster0.bkmbh.mongodb.net/")
 
-# Redis Connection
-redis_client = StrictRedis(
-    host=os.environ.get("REDIS_HOST"),
-    port=6379,
-    password=os.environ.get("REDIS_PASSWORD"),
-    ssl=True,
-    decode_responses=True
-)
-
-# Flask App
-app = Flask(__name__)
+# MongoDB setup
+client = MongoClient(mongo_uri)
+db = client.get_database("zim_grocery")
+user_states_collection = db.user_states
+orders_collection = db.orders
 
 class User:
     def __init__(self, payer_name, payer_phone):
@@ -37,429 +34,726 @@ class User:
         self.payer_phone = payer_phone
         self.cart = []
         self.checkout_data = {}
-
+    
     def add_to_cart(self, product, quantity):
-        self.cart.append((product, quantity))
-
+        # Check if product already in cart
+        for item in self.cart:
+            if item['product'].name == product.name:
+                item['quantity'] += quantity
+                return
+        self.cart.append({"product": product, "quantity": quantity})
+    
     def remove_from_cart(self, product_name):
-        self.cart = [item for item in self.cart if item[0].name.lower() != product_name.lower()]
-
+        self.cart = [item for item in self.cart if item["product"].name.lower() != product_name.lower()]
+    
     def clear_cart(self):
         self.cart = []
-
+    
     def get_cart_contents(self):
-        return self.cart
+        return [(item["product"], item["quantity"]) for item in self.cart]
+    
+    def get_cart_total(self):
+        return sum(item["product"].price * item["quantity"] for item in self.cart)
+    
+    def to_dict(self):
+        return {
+            "payer_name": self.payer_name,
+            "payer_phone": self.payer_phone,
+            "cart": [{
+                "product": {
+                    "name": item["product"].name,
+                    "price": item["product"].price,
+                    "description": item["product"].description
+                },
+                "quantity": item["quantity"]
+            } for item in self.cart],
+            "checkout_data": self.checkout_data
+        }
+    
+    @classmethod
+    def from_dict(cls, data):
+        user = cls(data["payer_name"], data["payer_phone"])
+        user.cart = [{
+            "product": Product(
+                item["product"]["name"],
+                float(item["product"]["price"]),
+                item["product"].get("description", "")
+            ),
+            "quantity": int(item["quantity"])
+        } for item in data.get("cart", [])]
+        user.checkout_data = data.get("checkout_data", {})
+        return user
 
-class Product:
-    def __init__(self, name, price, description):
-        self.name = name
-        self.price = price
-        self.description = description
+# State handlers
+def handle_ask_name(prompt, user_data, phone_id):
+    send("Hello! Welcome to Zimbogrocer. What's your name?", user_data['sender'], phone_id)
+    update_user_state(user_data['sender'], {'step': 'save_name'})
+    return {'step': 'save_name'}
 
-class OrderSystem:
-    def __init__(self):
-        self.categories = {
-    "Household": [
-        Product("Sta Soft Lavender 2L", 59.99, "Fabric softener"),
-        Product("Sunlight Dishwashing Liquid 750ml", 35.99, "Dishwashing liquid"),
-        Product("Nova 2-Ply Toilet Paper 9s", 49.90, "Toilet paper"),
-        Product("Domestos Thick Bleach Assorted 750ml", 39.99, "Bleach cleaner"),
-        Product("Doom Odourless Multi-Insect Killer 300ml", 32.90, "Insect killer"),
-        Product("Handy Andy Assorted 500ml", 32.99, "Multi-surface cleaner"),
-        Product("Jik Assorted 750ml", 29.99, "Disinfectant"),
-        Product("Maq Dishwashing Liquid 750ml", 35.99, "Dishwashing liquid"),
-        Product("Maq 3kg Washing Powder", 72.90, "Washing powder"),
-        Product("Maq Handwashing Powder 2kg", 78.99, "Handwashing powder"),
-        Product("Elangeni Washing Bar 1kg", 24.59, "Washing bar"),
-        Product("Vim Scourer 500g", 21.99, "Scouring pad"),
-        Product("Matches Carton (10s)", 8.99, "Matches"),
-        Product("Surf 5kg", 159.99, "Washing powder"),
-        Product("Britelite Candles 6s", 32.99, "Candles"),
-        Product("Sta-Soft Assorted Refill Sachet 2L", 39.99, "Fabric softener refill"),
-        Product("Poppin Fresh Dishwashing Liquid 750ml", 22.99, "Dishwashing liquid"),
-        Product("Poppin Fresh Toilet Cleaner 500ml", 34.99, "Toilet cleaner"),
-        Product("Poppin Fresh Multi-Purpose Cleaner", 25.99, "Multi-purpose cleaner")
-    ],
-    "Personal Care": [
-        Product("Softex Toilet Tissue 1-Ply 4s", 39.99, "Toilet tissue"),
-        Product("Protex Bath Soap Assorted 150g", 21.99, "Bath soap"),
-        Product("Sona Bath Soap 300g", 13.99, "Bath soap"),
-        Product("Kiwi Black Shoe Polish 50ml", 18.99, "Shoe polish"),
-        Product("Nivea Women's Roll On Assorted 50ml", 33.99, "Deodorant"),
-        Product("Clere Lanolin Lotion 400ml", 35.99, "Body lotion"),
-        Product("Vaseline Men Petroleum Jelly 250ml", 9.99, "Petroleum jelly"),
-        Product("Vaseline Petroleum Jelly Original 250ml", 39.99, "Petroleum jelly"),
-        Product("Sunlight Bath Soap Lively Lemon 175g", 10.90, "Bath soap"),
-        Product("Shield Fresh Shower Deo", 24.99, "Deodorant"),
-        Product("Hoity Toity Ladies Spray", 22.90, "Ladies spray"),
-        Product("Brut Total Attraction Roll On", 17.90, "Deodorant"),
-        Product("Vaseline Men Lotion 400ml", 64.99, "Body lotion"),
-        Product("Shield Dry Musk Roll On 50ml", 24.99, "Deodorant"),
-        Product("Sunlight Bath Soap Juicy Orange 150g", 10.99, "Bath soap"),
-        Product("Axe Men Roll On Wild Spice", 32.99, "Deodorant"),
-        Product("Nivea Rich Nourishing Cream 400ml", 79.99, "Body cream"),
-        Product("Dawn Rich Lanolin Lotion 400ml", 24.90, "Body lotion"),
-        Product("Twinsaver 2-Ply Toilet Paper", 32.90, "Toilet paper"),
-        Product("Hoity Toity Body Lotion 400ml", 44.90, "Body lotion"),
-        Product("Axe Deo Assorted Men", 36.99, "Deodorant"),
-        Product("Stayfree Pads Scented Wings 10s", 15.99, "Sanitary pads"),
-        Product("Geisha Bath Soap", 9.90, "Bath soap"),
-        Product("Clere Berries and Cream 500ml", 39.99, "Body lotion"),
-        Product("Clere Body Cream Cocoa Butter 500ml", 39.99, "Body cream"),
-        Product("Ingram's Camphor Cream Herbal 500ml", 57.99, "Herbal cream"),
-        Product("Lifebuoy Lemon Fresh 175g", 16.99, "Bath soap"),
-        Product("Aquafresh Fresh and Minty Toothpaste 100ml", 22.99, "Toothpaste"),
-        Product("Lil Lets Pads Super Maxi Thick 8s", 13.99, "Sanitary pads"),
-        Product("Nivea Men Lotion (Assorted) 400ml", 79.99, "Body lotion"),
-        Product("Nivea Men Cream (Assorted) 400ml", 79.99, "Body cream"),
-        Product("Nivea Body Creme Deep Impact 400ml", 79.99, "Body cream"),
-        Product("Clere Berries and Creme Lotion 400ml", 35.99, "Body lotion"),
-        Product("Clere Men 400ml Lotion Assorted", 35.99, "Men's lotion"),
-        Product("Pearl/Sona Bath Soap Assorted 200g", 13.99, "Bath soap"),
-        Product("Nivea Intensive Moisturizing Creme 500ml", 79.99, "Moisturizing cream"),
-        Product("Protex for Men Assorted Bath Soap 150g", 21.99, "Bath soap"),
-        Product("Axe Roll On Assorted", 36.99, "Deodorant"),
-        Product("Satiskin Floral Bouquet 2L", 99.99, "Body wash"),
-        Product("Nivea Deep Impact Lotion 400ml", 79.99, "Body lotion"),
-        Product("Nivea Ladies Deo Pearl Beauty", 32.90, "Deodorant"),
-        Product("Nivea Rich Nourishing Lotion 400ml", 79.99, "Body lotion"),
-        Product("Nivea Deo Dry Confidence Women 150ml", 32.99, "Deodorant"),
-        Product("Dove Roll On Assorted", 26.99, "Deodorant"),
-        Product("Satiskin Foam Bath Berry Fantasy 2L", 99.99, "Foam bath"),
-        Product("Clere Glycerin 100ml", 21.99, "Glycerin"),
-        Product("Nivea Body Creme Max Hydration 400ml", 79.99, "Body cream"),
-        Product("Clere Men Body Cream Assorted 400ml", 39.99, "Men's body cream"),
-        Product("Nivea Intensive Moisturizing Lotion 400g", 79.99, "Moisturizing lotion"),
-        Product("Lux Soft Touch 175g", 21.99, "Bath soap"),
-        Product("Lifebuoy Total 10 175g", 16.99, "Bath soap"),
-        Product("Jade Bath Soap Assorted", 12.60, "Bath soap"),
-        Product("Stayfree Pads Unscented Wings 10s", 19.90, "Sanitary pads"),
-        Product("Colgate 100ml", 18.99, "Toothpaste"),
-        Product("Clere Men Fire 450ml", 39.99, "Men's lotion"),
-        Product("Shield Men's Roll On Assorted", 24.99, "Deodorant"),
-        Product("Shower to Shower Ladies Deodorant", 27.99, "Deodorant"),
-        Product("Lux Soft Caress 175g", 21.99, "Bath soap"),
-        Product("Nivea Men Revitalizing Body Cream 400g", 79.99, "Body cream"),
-        Product("Clere Cocoa Butter Lotion 400ml", 32.99, "Body lotion"),
-        Product("Shield Women's Roll On Assorted", 24.99, "Deodorant"),
-        Product("Nivea All Season Body Lotion 400ml", 79.99, "Body lotion"),
-        Product("Nivea Men Roll On Assorted 50ml", 33.99, "Deodorant"),
-        Product("Protex Deep Clean Bath Soap 150g", 21.99, "Bath soap"),
-        Product("Sunlight Cooling Mint Bathing Soap 150g", 10.99, "Bath soap"),
-        Product("Dettol 250ml", 25.99, "Antiseptic liquid"),
-        Product("Woods Peppermint 100ml", 46.90, "Body spray"),
-        Product("Med Lemon Sachet 6.1g", 7.90, "Lemon sachet"),
-        Product("Predo Adult Diapers 30s (M/L/XL)", 317.99, "Adult diapers"),
-        Product("Ingram's Camphor Moisture Plus 500ml", 59.99, "Moisturizing cream"),
-        Product("Disposable Face Mask 50s", 39.99, "Face masks")
-    ],
-    "Baby Section": [
-        Product("Huggies Dry Comfort Jumbo Size 5 (44s)", 299.99, "Diapers"),
-        Product("Pampers Fresh Clean Wipes 64 Pack", 31.90, "Baby wipes"),
-        Product("Johnson and Johnson Scented Baby Jelly 325ml", 52.99, "Baby jelly"),
-        Product("Vaseline Baby Jelly 250g", 31.90, "Baby jelly"),
-        Product("Predo Baby Wipes Assorted 120s", 52.90, "Baby wipes"),
-        Product("Huggies Dry Comfort Size 3 Jumbo (76)", 299.99, "Diapers"),
-        Product("Huggies Dry Comfort Size 2 Jumbo (94)", 299.99, "Diapers"),
-        Product("Huggies Dry Comfort Size 4 Jumbo", 299.99, "Diapers"),
-        Product("Bennetts Aqueous Cream 500ml", 39.30, "Aqueous cream"),
-        Product("Predo Baby Wipes Assorted 80s", 38.99, "Baby wipes"),
-        Product("Crez Babyline Petroleum Jelly 500g", 42.99, "Petroleum jelly"),
-        Product("Johnson and Johnson Lightly Fragranced Aqueous Cream 350ml", 39.90, "Aqueous cream"),
-        Product("Nestle Baby Cereal with Milk Regular Wheat 250g", 34.99, "Baby cereal"),
-        Product("Nan 2: Infant Formula Optipro 400g", 79.99, "Infant formula"),
-        Product("Nan 1: Infant Formula Optipro 400g", 79.99, "Infant formula")
-    ],
-    "Snacks and Sweets": [
-        Product("Jena Maputi 15pack", 23.99, "Popcorn"),
-        Product("Tiggies Assorted 50s", 74.99, "Snacks"),
-        Product("L Choice Assorted Biscuits", 12.90, "Biscuits"),
-        Product("Sneaker Nax Bale Pack 2kg", 39.90, "Snacks"),
-        Product("Yogueta Lollipop Split Pack 48 Pack", 59.99, "Lollipops"),
-        Product("Arenel Choice Assorted Biscuits 150g", 19.90, "Biscuits"),
-        Product("Willards Things 150g", 14.99, "Cheese snacks"),
-        Product("Stumbo Assorted Lollipops 48s", 59.99, "Lollipops"),
-        Product("Pringles Original 110g", 22.90, "Potato chips"),
-        Product("Nibble Naks 20pack", 29.99, "Snacks"),
-        Product("King Kurls Chicken Flavour 100g", 12.90, "Snacks"),
-        Product("Nik Naks 50s Pack Assorted", 54.90, "Snacks"),
-        Product("Proton Ramba Waraira Cookies 1 kg", 68.99, "Cookies"),
-        Product("Lobels Marie Biscuits", 6.90, "Biscuits"),
-        Product("Chocolate Coated Biscuits", 35.99, "Chocolate biscuits"),
-        Product("Top 10 Assorted Sweets", 9.90, "Assorted sweets"),
-        Product("Jelido Magic Rings 102 Pieces", 48.90, "Candy rings"),
-        Product("Lays Assorted Flavours 105g", 52.99, "Potato chips"),
-        Product("Charhons Biscuits 2kg", 99.99, "Biscuits"),
-        Product("Zap Nax Cheese and Onion 100g", 3.99, "Snacks")
-    ],
-    "Fresh Groceries": [
-        Product("Economy Steak on Bone Beef Cuts 1kg", 147.99, "Fresh beef"),
-        Product("Parmalat Cheddar Cheese", 89.99, "Cheddar cheese slices"),
-        Product("Colcom Beef Polony 3kg", 299.00, "Beef polony"),
-        Product("Colcom Tastee French Polony 750g", 116.99, "French polony"),
-        Product("Colcom Chicken Polony 3kg", 219.90, "Chicken polony"),
-        Product("Bulk Mixed Pork 1kg", 128.99, "Mixed pork"),
-        Product("Potatoes 7.5kg (Small Pocket)", 219.99, "Fresh potatoes"),
-        Product("Colcom Tastee Chicken Polony 1kg", 34.90, "Chicken polony"),
-        Product("Colcom Garlic Polony 3kg", 220.00, "Garlic polony"),
-        Product("Colcom Tastee Beef Polony 1kg", 35.00, "Beef polony"),
-        Product("Wrapped Mixed Size Fresh Eggs 30", 149.99, "Fresh eggs"),
-        Product("Texas Meats Juicy Boerewors", 159.99, "Boerewors"),
-        Product("Unwrapped Small Size Fresh Eggs 30s", 99.99, "Fresh eggs"),
-        Product("Irvines Mixed Chicken Cuts 2kg", 179.99, "Mixed chicken cuts"),
-        Product("Dairibord Yoghurt 150ml", 15.99, "Yoghurt")
-    ],
-    "Stationery": [
-        Product("Plastic Cover 3 Meter Roll", 7.99, "Plastic cover"),
-        Product("Ruler 30cm", 6.99, "Ruler"),
-        Product("A4 Bond Paper White", 126.99, "Bond paper"),
-        Product("Kakhi Cover 3 Meter Roll", 8.99, "Kakhi cover"),
-        Product("School Trunk", 750.00, "School trunk"),
-        Product("Oxford Maths Set", 34.99, "Maths set"),
-        Product("Grade 1-3 Exercise Book A4 32 Page (10 Pack)", 36.99, "Exercise books"),
-        Product("72 Page Newsprint Maths Book (10 Pack)", 69.99, "Maths books"),
-        Product("Cellotape Large 40yard", 5.99, "Cellotape"),
-        Product("Newsprint 2 Quire Counter Books (192 Page)", 28.99, "Counter books"),
-        Product("72 Page Newsprint Writing Exercise Book (10 Pack)", 69.99, "Writing exercise books"),
-        Product("Cellotape Small 20yard", 3.99, "Cellotape"),
-        Product("Eversharp Pens Set x 4", 14.99, "Pens set"),
-        Product("Newsprint 1 Quire (96 Page) Counter Book", 17.99, "Counter book"),
-        Product("HB Pencils x 12 Set", 24.99, "Pencils set"),
-        Product("Sharp Scientific Calculator", 319.99, "Scientific calculator"),
-        Product("32 Page Newsprint Plain Exercise Book (10 Pack)", 36.99, "Plain exercise books")
-    ],
-    "Pantry": [
-        Product("Ace Instant Porridge 1kg Assorted", 27.99, "Instant porridge mix"),
-        Product("All Gold Tomato Sauce 700g", 44.99, "Tomato sauce"),
-        Product("Aromat Original 50g", 24.99, "Seasoning"),
-        Product("Bakers Inn Bread", 23.99, "Brown loaf bread"),
-        Product("Bakers Inn White Loaf", 23.99, "White loaf bread"),
-        Product("Bella Macaroni 3kg", 82.99, "Macaroni pasta"),
-        Product("Bisto Gravy 125g", 19.99, "Gravy mix"),
-        Product("Blue Band Margarine 500g", 44.99, "Margarine"),
-        Product("Blue Ribbon Self Raising 2kg", 37.99, "Self-raising flour"),
-        Product("Bokomo Cornflakes 1kg", 54.90, "Cornflakes"),
-        Product("Bullbrand Corned Beef 300g", 39.99, "Corned beef"),
-        Product("Buttercup Margarine 500g", 44.99, "Margarine"),
-        Product("Cashel Valley Baked Beans 400g", 18.99, "Baked beans"),
-        Product("Cerevita 500g", 69.99, "Cereal"),
-        Product("Cookmore Cooking Oil 2L", 67.99, "Cooking oil"),
-        Product("Cross and Blackwell Mayonnaise 700g", 49.99, "Mayonnaise"),
-        Product("Dried Kapenta 1kg", 134.99, "Dried fish"),
-        Product("Ekonol Rice 5kg", 119.29, "Rice"),
-        Product("Fattis Macaroni 500g", 22.99, "Macaroni"),
-        Product("Gloria Self Raising Flour 5kg", 79.90, "Self-raising flour"),
-        Product("Jungle Oats 1kg", 44.99, "Oats"),
-        Product("Knorr Brown Onion Soup 50g", 7.99, "Onion soup mix"),
-        Product("Lucky Star Pilchards in Tomato Sauce 155g", 17.99, "Pilchards"),
-        Product("Mahatma Rice 2kg", 52.99, "Rice"),
-        Product("Peanut Butter 350ml", 19.99, "Peanut butter"),
-        Product("Roller Meal 10kg- Zim Meal", 136.99, "Maize meal")
-    ],
-    "Beverages": [
-        Product("Stella Teabags 100 Pack", 42.99, "Tea bags"),
-        Product("Mazoe Raspberry 2 Litres", 67.99, "Fruit drink"),
-        Product("Cremora Creamer 750g", 72.99, "Coffee creamer"),
-        Product("Everyday Milk Powder 400g", 67.99, "Milk powder"),
-        Product("Freshpack Rooibos 80s", 84.99, "Rooibos tea"),
-        Product("Nestle Gold Cross Condensed Milk 385g", 29.99, "Condensed milk"),
-        Product("Pine Nut Soft Drink 2L", 37.99, "Soft drink"),
-        Product("Mazoe Blackberry 2L", 68.99, "Fruit drink"),
-        Product("Quench Mango 2L", 32.99, "Fruit drink"),
-        Product("Coca Cola 2L", 39.99, "Soft drink"),
-        Product("Pfuko Dairibord Maheu 500ml", 14.99, "Maheu drink"),
-        Product("Sprite 2 Litres", 37.99, "Soft drink"),
-        Product("Pepsi (500ml x 24)", 178.99, "Soft drink pack"),
-        Product("Probands Milk 500ml", 20.99, "Steri milk"),
-        Product("Lyons Hot Chocolate 125g", 42.99, "Hot chocolate"),
-        Product("Dendairy Long Life Full Cream Milk 1 Litre", 28.99, "Long life milk"),
-        Product("Joko Tea Bags 100", 55.99, "Tea bags"),
-        Product("Cool Splash 5 Litre Orange Juice", 99.99, "Orange juice"),
-        Product("Cremora Coffee Creamer 750g", 72.99, "Coffee creamer"),
-        Product("Fanta Orange 2 Litres", 37.99, "Soft drink"),
-        Product("Quench Mango 5L", 92.25, "Fruit drink"),
-        Product("Ricoffy Coffee 250g", 52.99, "Coffee"),
-        Product("Dendairy Low Fat Long Life Milk", 28.99, "Low fat milk"),
-        Product("Quickbrew Teabags 50", 25.99, "Teabags"),
-        Product("Fruitrade 2L Orange Juice", 32.90, "Orange juice"),
-        Product("Mazoe Orange Crush 2L", 69.99, "Fruit drink"),
-        Product("Joko Rooibos Tea Bags 80s", 84.99, "Rooibos tea")
-    ]
-}
 
-def deserialize_user(data, phone):
-    user = User(data['payer_name'], phone)
-    user.cart = [(Product(p['name'], p['price'], p['description']), p['quantity']) for p in data.get('cart', [])]
-    user.checkout_data = data.get('checkout_data', {})
-    return user
+def handle_save_name(prompt, user_data, phone_id):
+    user = User(prompt.title(), user_data['sender'])
+    
+    # Create an instance of OrderSystem
+    order_system = OrderSystem()
+    
+    # Get products by category
+    categories_products = order_system.get_products_by_category()  # dict {category_name: products_str}
+    
+    category_names = list(categories_products.keys())
+    current_index = 0
+    first_category = category_names[current_index]
+    first_products = categories_products[first_category]
+    
+    # Save user state with category index and product data
+    update_user_state(user_data['sender'], {
+        'step': 'choose_product',
+        'user': user.to_dict(),
+        'category_names': category_names,
+        'current_category_index': current_index
+    })
+    
+    message = (
+        f"Thanks {user.payer_name}! Here are products from {first_category}:\n"
+        f"{first_products}\n\nReply 'more' to see next category."
+    )
+    send(message, user_data['sender'], phone_id)
+    
+    return {'step': 'choose_product', 'user': user.to_dict()}
 
-@app.route("/webhook", methods=["POST"])
-def webhook():
-    data = request.get_json()["entry"][0]["changes"][0]["value"]["messages"][0]
-    phone_id = request.get_json()["entry"][0]["changes"][0]["value"]["metadata"]["phone_number_id"]
-    message_handler(data, phone_id)
-    return jsonify({"status": "ok"}), 200
 
-def get_action(current_state, prompt, user_data):
-    action_mapping = {
-        "ask_name": handle_ask_name,
-        "save_name": handle_save_name,
-        "choose_category": handle_choose_category,
-        "choose_product": handle_choose_product,
-        "ask_quantity": handle_ask_quantity,
-        "post_add_menu": handle_post_add_menu,
-        "get_area": handle_get_area,
-        "ask_checkout": handle_ask_checkout,
-        "get_receiver_name": handle_get_receiver_name,
-        "get_address": handle_get_address,
-        "get_id": handle_get_id,
-        "get_phone": handle_get_phone,
-        "confirm_details": handle_confirm_details,
-        "ask_place_another_order": handle_ask_place_another_order,
-    }
-    handler = action_mapping.get(current_state, handle_default)
-    return handler(prompt, user_data)
+def handle_next_category(user_data, phone_id):
+    state = get_user_state(user_data['sender'])
+    category_names = state.get('category_names', [])
+    current_index = state.get('current_category_index', 0)
+    
+    # Move to next category
+    current_index += 1
+    
+    if current_index >= len(category_names):
+        send(
+            "No more categories. You can now select a product or type 'menu' to go back.",
+            user_data['sender'], phone_id
+        )
+        return {'step': 'choose_product', 'user': state.get('user')}
+    
+    # Create instance of OrderSystem and fetch products again
+    order_system = OrderSystem()
+    categories_products = order_system.get_products_by_category()
+    
+    next_category = category_names[current_index]
+    next_products = categories_products[next_category]
+    
+    # Update user state
+    update_user_state(user_data['sender'], {
+        'step': 'choose_product',
+        'user': state.get('user'),
+        'category_names': category_names,
+        'current_category_index': current_index
+    })
+    
+    message = (
+        f"Here are products from {next_category}:\n"
+        f"{next_products}\n\nReply 'more' to see next category."
+    )
+    send(message, user_data['sender'], phone_id)
+    
+    return {'step': 'choose_product', 'user': state.get('user')}
 
-def message_handler(data, phone_id):
-    sender = data["from"]
-    prompt = data["text"]["body"].strip()
 
-    # Retrieve from Redis
-    raw_data = redis_client.get(sender)
-    if raw_data:
-        user_data = json.loads(raw_data)
-        user_data['order_system'] = OrderSystem()
-        if 'user' in user_data:
-            user_data['user'] = deserialize_user(user_data['user'], sender)
+
+def handle_choose_category(prompt, user_data, phone_id):
+    order_system = OrderSystem()
+    if prompt.isalpha() and len(prompt) == 1:
+        idx = ord(prompt.upper()) - 65
+        categories = order_system.list_categories()
+        if 0 <= idx < len(categories):
+            cat = categories[idx]
+            update_user_state(user_data['sender'], {
+                'selected_category': cat,
+                'step': 'choose_product'
+            })
+            send(f"Products in {cat}:\n{list_products(cat)}\nSelect a product by number.", user_data['sender'], phone_id)
+            return {'step': 'choose_product', 'selected_category': cat}
+        else:
+            send("Invalid category. Try again:\n" + list_categories(), user_data['sender'], phone_id)
+            return {'step': 'choose_category'}
     else:
-        user_data = {
-            "step": "ask_name",
-            "order_system": OrderSystem()
+        send("Please enter a valid category letter (e.g., A, B, C).", user_data['sender'], phone_id)
+        return {'step': 'choose_category'}
+
+
+def handle_choose_product(prompt, user_data, phone_id):
+    try:
+        index = int(prompt) - 1
+        order_system = OrderSystem()
+        products = order_system.get_all_products()
+        if 0 <= index < len(products):
+            selected_product = products[index]
+            update_user_state(user_data['sender'], {
+                'selected_product': {
+                    'name': selected_product.name,
+                    'price': selected_product.price,
+                    'description': selected_product.description
+                },
+                'step': 'ask_quantity'
+            })
+            send(f"You selected {selected_product.name}. How many would you like to add?", user_data['sender'], phone_id)
+            return {
+                'step': 'ask_quantity',
+                'selected_product': {
+                    'name': selected_product.name,
+                    'price': selected_product.price,
+                    'description': selected_product.description
+                }
+            }
+        else:
+            send("Invalid product number. Try again.", user_data['sender'], phone_id)
+            return {'step': 'choose_product'}
+    except Exception:
+        send("Please enter a valid product number.", user_data['sender'], phone_id)
+        return {'step': 'choose_product'}
+
+
+
+def handle_ask_quantity(prompt, user_data, phone_id):
+    # Step 1: Try converting prompt to an integer
+    try:
+        print(f"[DEBUG] Raw user input: {prompt!r}")
+        qty = int(prompt.strip())
+        if qty < 1:
+            raise ValueError("Quantity must be 1 or more.")
+    except ValueError as ve:
+        print(f"[ERROR] Invalid quantity input: {ve}")
+        send("Please enter a valid number for quantity (e.g., 1, 2, 3).", user_data['sender'], phone_id)
+        return {'step': 'ask_quantity', 'selected_product': user_data.get("selected_product", {})}
+
+    # Step 2: Proceed with adding to cart
+    try:
+        user_dict = user_data.get('user')
+        if not user_dict:
+            raise KeyError("User data is missing.")
+
+        selected_product_data = user_data.get("selected_product")
+        if not selected_product_data:
+            raise KeyError("Selected product data is missing.")
+
+        user = User.from_dict(user_dict)
+        selected_product = Product(
+            selected_product_data['name'],
+            selected_product_data['price'],
+            selected_product_data.get('description', '')
+        )
+
+        user.add_to_cart(selected_product, qty)
+
+        # Update state to post_add_menu
+        update_user_state(user_data['sender'], {
+            'user': user.to_dict(),
+            'step': 'post_add_menu'
+        })
+
+        send(
+            "Item added to your cart.\nWhat would you like to do next?\n"
+            "1. View cart\n2. Clear cart\n3. Remove <item>\n4. Add Item",
+
+            user_data['sender'],
+            phone_id
+        )
+
+        return {
+            'step': 'post_add_menu',
+            'user': user.to_dict()
         }
 
-    user_data['sender'] = sender
-    user_data['phone_id'] = phone_id
-    user_data['delivery_areas'] = {
-        "Harare": 240, "Chitungwiza": 300, "Mabvuku": 300, "Ruwa": 300,
-        "Domboshava": 250, "Southlea": 300, "Southview": 300, "Epworth": 300,
-        "Mazoe": 300, "Chinhoyi": 350, "Banket": 350, "Rusape": 400, "Dema": 300
+    except Exception as e:
+        print(f"[ERROR] Exception during cart update: {e}")
+        traceback.print_exc()  # This gives you the exact error and line number
+        send("Something went wrong while adding the item. Please try again.", user_data['sender'], phone_id)
+        return {'step': 'ask_quantity', 'selected_product': user_data.get("selected_product", {})}
+
+
+def handle_post_add_menu(prompt, user_data, phone_id):
+    user = User.from_dict(user_data['user'])
+    delivery_areas = {
+        "Harare": 240,
+        "Chitungwiza": 300,
+        "Mabvuku": 300,
+        "Ruwa": 300,
+        "Domboshava": 250,
+        "Southlea": 300,
+        "Southview": 300,
+        "Epworth": 300,
+        "Mazoe": 300,
+        "Chinhoyi": 350,
+        "Banket": 350,
+        "Rusape": 400,
+        "Dema": 300
     }
-
-    step = user_data["step"]
-    get_action(step, prompt, user_data)
-
-    # Save to Redis
-    to_store = user_data.copy()
-    to_store.pop("order_system", None)
-    if 'user' in to_store:
-        to_store['user'] = serialize_user(to_store['user'])
-    redis_client.set(sender, json.dumps(to_store))
-
-@app.route("/", methods=["GET"])
-def index():
-    return render_template("connected.html")
-
-# Existing handler functions here: handle_ask_name, handle_save_name, etc.
-
-def handle_ask_name(prompt, user_data):
-    send("Hello! Welcome to Zimbogrocer. What's your name?", user_data['sender'], user_data['phone_id'])
-    user_data['step'] = 'save_name'
-
-def handle_save_name(prompt, user_data):
-    user = User(prompt.title(), user_data['sender'])
-    user_data['user'] = user
-    send(f"Thanks {user.payer_name}! Please select a category:\n{list_categories(user_data['order_system'])}", user_data['sender'], user_data['phone_id'])
-    user_data['step'] = 'choose_category'
-
-def handle_ask_quantity(prompt, user_data):
-    user = user_data['user']
-    try:
-        qty = int(prompt)
-        prod = user_data["selected_product"]
-        if qty < 1:
-            raise ValueError
-        user.add_to_cart(prod, qty)
-        send("Item added to your cart.\nWhat would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Add Item", user_data['sender'], user_data['phone_id'])
-        user_data["step"] = "post_add_menu"
-    except Exception:
-        send("Please enter a valid number for quantity (e.g., 1, 2, 3).", user_data['sender'], user_data['phone_id'])
-
-def handle_post_add_menu(prompt, user_data):
-    user = user_data['user']
-    delivery_areas = user_data['delivery_areas']
-    if prompt.lower() == "view cart":
+    
+   
+    if prompt.lower() in ["view", "view cart", "1"]:   
         cart_message = show_cart(user)
-        send(cart_message + "\n\nPlease select your delivery area:\n" + list_delivery_areas(delivery_areas), user_data['sender'], user_data['phone_id'])
-        user_data["step"] = "get_area"
-    elif prompt.lower() == "clear cart":
+        update_user_state(user_data['sender'], {
+            'step': 'get_area',
+            'delivery_areas': delivery_areas
+        })
+        send(cart_message + "\n\nPlease select your delivery area:\n" + list_delivery_areas(delivery_areas), user_data['sender'], phone_id)
+        return {
+            'step': 'get_area',
+            'delivery_areas': delivery_areas,
+            'user': user.to_dict()
+        }
+
+    elif prompt.lower() in ["clear", "clear cart", "2"]:    
         user.clear_cart()
-        send("Cart cleared.\nWhat would you like to do next?\n- View cart\n- Add Item", user_data['sender'], user_data['phone_id'])
-        user_data["step"] = "post_add_menu"
-    elif prompt.lower().startswith("remove "):
+        update_user_state(user_data['sender'], {
+            'user': user.to_dict(),
+            'step': 'post_add_menu'
+        })
+        send("Cart cleared.\nWhat would you like to do next?\n1 View cart\n4 Add Item", user_data['sender'], phone_id)
+        return {
+            'step': 'post_add_menu',
+            'user': user.to_dict()
+        }
+    elif prompt.lower() in ["remove", "3"]:     
         item = prompt[7:].strip()
         user.remove_from_cart(item)
-        send(f"{item} removed from cart.\n{show_cart(user)}\nWhat would you like to do next?\n- View cart\n- Add Item", user_data['sender'], user_data['phone_id'])
-        user_data["step"] = "post_add_menu"
-    elif prompt.lower() in ["add", "add item", "add another", "add more"]:
-        send("Sure! Here are the available categories:\n" + list_categories(user_data['order_system']), user_data['sender'], user_data['phone_id'])
-        user_data["step"] = "choose_category"
-    else:
-        send("Sorry, I didn't understand. You can:\n- View Cart\n- Clear Cart\n- Remove <item>\n- Add Item", user_data['sender'], user_data['phone_id'])
+        update_user_state(user_data['sender'], {
+            'user': user.to_dict(),
+            'step': 'post_add_menu'
+        })
+        send(f"{item} removed from cart.\n{show_cart(user)}\nWhat would you like to do next?\n1 View cart\n4 Add Item", user_data['sender'], phone_id)
+        return {
+            'step': 'post_add_menu',
+            'user': user.to_dict()
+        }
+    elif prompt.lower() in ["add", "add item", "add another", "add more", "4"]:
+        # Set step to 'choose_product' (not 'save_name')
+        order_system = OrderSystem()
+        categories_products = order_system.get_products_by_category()  # dict {category_name: formatted_str}
+    
+        # Save state for category navigation
+        category_names = list(categories_products.keys())
+        current_index = 0
+        first_category = category_names[current_index]
+        first_products = categories_products[first_category]
+    
+        update_user_state(user_data['sender'], {
+            'step': 'choose_product',
+            'user': user.to_dict(),
+            'category_names': category_names,
+            'current_category_index': current_index
+        })
+    
+        send(
+            f"Sure! Here are products from {first_category}:\n"
+            f"{first_products}\n\nReply 'more' to see next category.",
+            user_data['sender'],
+            phone_id
+        )
+    
+        return {
+            'step': 'choose_product',
+            'user': user.to_dict()
+        }
 
-def handle_get_area(prompt, user_data):
-    user = user_data['user']
+def handle_get_area(prompt, user_data, phone_id):
+    user = User.from_dict(user_data['user'])
     delivery_areas = user_data['delivery_areas']
     area = prompt.strip().title()
-    if area in delivery_areas:
+
+    if area.lower() == "harare":
+        send("Would you like to *pick up* or *have it delivered*?", user_data['sender'], phone_id)
+        update_user_state(user_data['sender'], {
+            'user': user.to_dict(),
+            'step': 'choose_delivery_or_pickup',
+            'area': area
+        })
+        return {
+            'step': 'choose_delivery_or_pickup',
+            'user': user.to_dict()
+        }
+
+    elif area in delivery_areas:
         user.checkout_data["delivery_area"] = area
         fee = delivery_areas[area]
         user.checkout_data["delivery_fee"] = fee
-        delivery_product = Product("__Delivery__", fee, f"Delivery to {area}")
+        delivery_product = Product(f"Delivery to {area}", fee, "Delivery fee")
         user.add_to_cart(delivery_product, 1)
-        send(show_cart(user) + "\nWould you like to checkout? (yes/no)", user_data['sender'], user_data['phone_id'])
-        user_data["step"] = "ask_checkout"
-    else:
-        send(f"Invalid area. Please choose from:\n{list_delivery_areas(delivery_areas)}", user_data['sender'], user_data['phone_id'])
 
-def handle_ask_checkout(prompt, user_data):
+        update_user_state(user_data['sender'], {
+            'user': user.to_dict(),
+            'step': 'ask_checkout'
+        })
+
+        send(f"{show_cart(user)}\nWould you like to checkout? (yes/no)", user_data['sender'], phone_id)
+        return {
+            'step': 'ask_checkout',
+            'user': user.to_dict()
+        }
+
+    else:
+        send(f"Invalid area. Please choose from:\n{list_delivery_areas(delivery_areas)}", user_data['sender'], phone_id)
+        return {
+            'step': 'get_area',
+            'delivery_areas': delivery_areas,
+            'user': user.to_dict()
+        }
+
+def handle_choose_delivery_or_pickup(prompt, user_data, phone_id):
+    user = User.from_dict(user_data['user'])
+    choice = prompt.strip().lower()
+
+    if choice in ['pickup', 'pick up']:
+        update_user_state(user_data['sender'], {
+            'user': user.to_dict(),
+            'step': 'get_receiver_name_pickup',
+            'delivery_type': 'pickup',
+            'area': 'Harare'
+        })
+        send("What's the full name of the receiver?", user_data['sender'], phone_id)
+        return {
+            'step': 'get_receiver_name_pickup',
+            'user': user.to_dict()
+        }
+
+    elif choice in ['delivery', 'deliver']:
+        user.checkout_data['area'] = 'Harare'
+        update_user_state(user_data['sender'], {
+            'user': user.to_dict(),
+            'step': 'get_receiver_name',
+            'delivery_type': 'delivery',
+            'area': 'Harare'
+        })
+        send("What's the full name of the receiver?", user_data['sender'], phone_id)
+        return {
+            'step': 'get_receiver_name',
+            'user': user.to_dict()
+        }
+
+    send("Please reply with *pickup* or *delivery*.", user_data['sender'], phone_id)
+    return {
+        'step': 'choose_delivery_or_pickup',
+        'user': user.to_dict()
+    }
+
+def handle_get_receiver_name_pickup(prompt, user_data, phone_id):
+    user = User.from_dict(user_data['user'])
+    user.checkout_data['receiver_name'] = prompt.strip()
+
+    update_user_state(user_data['sender'], {
+        'user': user.to_dict(),
+        'step': 'get_id_pickup'
+    })
+    send("Please provide the receiver's ID number.", user_data['sender'], phone_id)
+    return {
+        'step': 'get_id_pickup',
+        'user': user.to_dict()
+    }
+
+
+def handle_get_id_pickup(prompt, user_data, phone_id):
+    user = User.from_dict(user_data['user'])
+    user.checkout_data['receiver_id'] = prompt.strip()
+
+    # Send pickup address and proceed to payment
+    send(
+        "Thanks! Please collect your order at:\n"
+        "*123 Main Street, Harare CBD*\n"
+        "Hours: 8am - 5pm, Mon-Sat.\n\n"
+        "Now let's choose a payment method.",
+        user_data['sender'], phone_id
+    )
+
+    payment_prompt = (
+        "Please select a payment method:\n"
+        "1. EFT\n"
+        "2. Pay at SHOPRITE/CHECKERS/USAVE/PICK N PAY/ GAME/ MAKRO/ SPAR using Mukuru wicode\n"
+        "3. World Remit\n"
+        "4. Western Union\n"
+        "5. Mukuru Direct Transfer (DETAILS PROVIDED UPON REQUEST)"
+    )
+    send(payment_prompt, user_data['sender'], phone_id)
+
+    update_user_state(user_data['sender'], {
+        'user': user.to_dict(),
+        'step': 'await_payment_selection'
+    })
+
+    return {
+        'step': 'await_payment_selection',
+        'user': user.to_dict()
+    }
+
+    
+    if user.checkout_data.get("delivery_method") == "pickup":
+        send("Pickup Address:\n42A Mbuya Nehanda St, Harare\nMon–Fri, 9am–5pm", user_data['sender'], phone_id)
+
+        # Proceed to payment options
+        payment_prompt = (
+            "Please select a payment method:\n"
+            "1. EFT\n"
+            "2. Pay at SHOPRITE/CHECKERS/USAVE/PICK N PAY/ GAME/ MAKRO/ SPAR using Mukuru wicode\n"
+            "3. World Remit\n"
+            "4. Western Union\n"
+            "5. Mukuru Direct Transfer (DETAILS PROVIDED UPON REQUEST)"
+        )
+        send(payment_prompt, user_data['sender'], phone_id)
+
+        update_user_state(user_data['sender'], {
+            'user': user.to_dict(),
+            'step': 'await_payment_selection'
+        })
+        return {
+            'step': 'await_payment_selection',
+            'user': user.to_dict()
+        }
+
+    else:
+        # Proceed to get phone for delivery flow
+        update_user_state(user_data['sender'], {
+            'user': user.to_dict(),
+            'step': 'get_phone'
+        })
+        send("Please provide the receiver's phone number.", user_data['sender'], phone_id)
+        return {
+            'step': 'get_phone',
+            'user': user.to_dict()
+        }
+
+
+def handle_ask_checkout(prompt, user_data, phone_id):
+    user = User.from_dict(user_data['user'])
+    
     if prompt.lower() in ["yes", "y"]:
-        send("Please enter the receiver’s full name.", user_data['sender'], user_data['phone_id'])
-        user_data["step"] = "get_receiver_name"
+        update_user_state(user_data['sender'], {'step': 'get_receiver_name'})
+        send("Please enter the receiver's full name as on national ID.", user_data['sender'], phone_id)
+        return {'step': 'get_receiver_name', 'user': user.to_dict()}
     elif prompt.lower() in ["no", "n"]:
-        send("What would you like to do next?\n- View cart\n- Clear cart\n- Remove <item>\n- Add Item", user_data['sender'], user_data['phone_id'])
-        user_data["step"] = "post_add_menu"
+        # Remove delivery fee if added
+        user.remove_from_cart("Delivery to")
+        update_user_state(user_data['sender'], {
+            'user': user.to_dict(),
+            'step': 'post_add_menu'
+        })
+        send("What would you like to do next?\n1 View cart\n2 Clear cart\n3 Remove <item>\n4 Add Item", user_data['sender'], phone_id)
+        return {'step': 'post_add_menu', 'user': user.to_dict()}
     else:
-        send("Please respond with 'yes' or 'no'.", user_data['sender'], user_data['phone_id'])
+        send("Please respond with 'yes' or 'no'.", user_data['sender'], phone_id)
+        return {'step': 'ask_checkout', 'user': user.to_dict()}
 
-def handle_get_phone(prompt, user_data):
-    user = user_data['user']
-    user.checkout_data["phone"] = prompt.strip()
+def handle_get_receiver_name(prompt, user_data, phone_id):
+    user = User.from_dict(user_data['user'])
+    user.checkout_data["receiver_name"] = prompt
+    update_user_state(user_data['sender'], {
+        'user': user.to_dict(),
+        'step': 'get_address'
+    })
+    send("Enter the delivery address.", user_data['sender'], phone_id)
+    return {
+        'step': 'get_address',
+        'user': user.to_dict()
+    }
+
+def handle_get_address(prompt, user_data, phone_id):
+    user = User.from_dict(user_data['user'])
+    user.checkout_data["address"] = prompt
+    update_user_state(user_data['sender'], {
+        'user': user.to_dict(),
+        'step': 'get_id'
+    })
+    send("Enter receiver's ID number.", user_data['sender'], phone_id)
+    return {
+        'step': 'get_id',
+        'user': user.to_dict()
+    }
+
+def handle_get_id(prompt, user_data, phone_id):
+    user = User.from_dict(user_data['user'])
+    user.checkout_data["receiver_id"] = prompt
+    update_user_state(user_data['sender'], {
+        'user': user.to_dict(),
+        'step': 'get_phone'
+    })
+    send("Enter receiver's phone number.", user_data['sender'], phone_id)
+    return {
+        'step': 'get_phone',
+        'user': user.to_dict()
+    }
+
+def handle_get_phone(prompt, user_data, phone_id):
+    user = User.from_dict(user_data['user'])
+    user.checkout_data["phone"] = prompt
     details = user.checkout_data
     confirm_message = (
-        f"Please confirm the details below:\n"
+        f"Please confirm the details below:\n\n"
         f"Name: {details['receiver_name']}\n"
-        f"Address: {details['address']}\n"
-        f"ID: {details['id_number']}\n"
+        f"Address: {user.checkout_data.get('address', 'N/A')}\n"
+        f"ID: {details['receiver_id']}\n"
         f"Phone: {details['phone']}\n\n"
         "Are these correct? (yes/no)"
     )
-    send(confirm_message, user_data['sender'], user_data['phone_id'])
-    user_data["step"] = "confirm_details"
+    update_user_state(user_data['sender'], {
+        'user': user.to_dict(),
+        'step': 'confirm_details'
+    })
+    send(confirm_message, user_data['sender'], phone_id)
+    return {
+        'step': 'confirm_details',
+        'user': user.to_dict()
+    }
 
-def handle_ask_place_another_order(prompt, user_data):
+def handle_confirm_details(prompt, user_data, phone_id):
+    user = User.from_dict(user_data['user'])
+
     if prompt.lower() in ["yes", "y"]:
-        send("Great! Please select a category:\n" + list_categories(user_data['order_system']), user_data['sender'], user_data['phone_id'])
-        user_data["step"] = "choose_category"
-    else:
-        send("Okay. Have a good day! 😊", user_data['sender'], user_data['phone_id'])
-        user_data["step"] = "ask_name"
+        # Ask the user to select a payment method
+        payment_prompt = (
+            "Please select a payment method:\n"
+            "1. EFT\n"
+            "2. Pay at SHOPRITE/CHECKERS/USAVE/PICK N PAY/ GAME/ MAKRO/ SPAR using Mukuru wicode\n"
+            "3. World Remit\n"
+            "4. Western Union\n"
+            "5. Mukuru Direct Transfer (DETAILS PROVIDED UPON REQUEST)"
+        )
+        send(payment_prompt, user_data['sender'], phone_id)
 
-def list_categories(order_system):
+        # Update state to wait for payment method selection
+        update_user_state(user_data['sender'], {
+            'user': user.to_dict(),
+            'step': 'await_payment_selection'
+        })
+
+        return {
+            'step': 'await_payment_selection',
+            'user': user.to_dict()
+        }
+
+
+def handle_payment_selection(selection, user_data, phone_id):
+    user = User.from_dict(user_data['user'])
+    order_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+
+    # Map selection to payment method
+    payment_methods = {
+        "1": (
+            "EFT\nBank: FNB\nName: Zimbogrocer (Pty) Ltd\n"
+            "Account: 62847698167\nBranch Code: 250655\n"
+            "Swift Code: FIRNZAJJ\nReference: " + order_id
+        ),
+        "2": "Pay at SHOPRITE/CHECKERS/USAVE/PICK N PAY/ GAME/ MAKRO/ SPAR using Mukuru wicode",
+        "3": "World Remit Transfer (details provided upon request)",
+        "4": "Western Union (details provided upon request)",
+        "5": "Mukuru Direct Transfer (DETAILS PROVIDED UPON REQUEST)"
+    }
+
+    payment_text = payment_methods.get(selection)
+    if payment_text:
+        # Save order to DB
+        order_data = {
+            'order_id': order_id,
+            'user_data': user.to_dict(),
+            'timestamp': datetime.now(),
+            'status': 'pending',
+            'total_amount': user.get_cart_total()
+        }
+        orders_collection.insert_one(order_data)
+    
+        # Notify owner
+        owner_message = (
+            f"New Order #{order_id}\n"
+            f"From: {user.payer_name} ({user.payer_phone})\n"
+            f"Receiver: {user.checkout_data['receiver_name']}\n"
+            f"ID: {user.checkout_data['receiver_id']}\n"
+            f"Address: {user.checkout_data.get('address', 'N/A')}\n"
+            f"Phone: {user.checkout_data.get('phone', 'N/A')}\n"
+            f"Payment Method: {payment_text}\n\n"
+            f"Items:\n{show_cart(user)}"
+        )
+        send(owner_message, owner_phone, phone_id)
+    
+        # Send confirmation to user
+        send(
+            f"Order placed! 🛒\nOrder ID: {order_id}\n\n"
+            f"{show_cart(user)}\n\n"
+            f"Receiver: {user.checkout_data['receiver_name']}\n"
+            f"ID: {user.checkout_data['receiver_id']}\n"
+            f"Address: {user.checkout_data.get('address', 'N/A')}\n"
+            f"Phone: {user.checkout_data.get('phone', 'N/A')}\n\n"
+            f"Payment Method: {payment_text}\n\n"
+            f"Would you like to place another order? (yes/no)",
+            user_data['sender'], phone_id
+        )
+
+        # Save the message to Redis
+        message_key = f"user_message:{order_id}"
+        redis_client.setex(message_key, user_message)  
+    
+        # Clear cart and update state
+        user.clear_cart()
+        update_user_state(user_data['sender'], {
+            'user': user.to_dict(),
+            'step': 'ask_place_another_order'
+        })
+    
+        return {
+            'step': 'ask_place_another_order',
+            'user': user.to_dict()
+        }
+    
+    else:
+        send("Invalid selection. Please enter a number between 1 and 5.", user_data['sender'], phone_id)
+        update_user_state(user_data['sender'], {
+            'user': user.to_dict(),
+            'step': 'await_payment_selection'
+        })
+        return {
+            'step': 'await_payment_selection',
+            'user': user.to_dict()
+        }
+
+
+def handle_ask_place_another_order(prompt, user_data, phone_id):
+    if prompt.lower() in ["yes", "y"]:
+        update_user_state(user_data['sender'], {'step': 'choose_category'})
+        send("Great! Please select a category:\n" + list_categories(), user_data['sender'], phone_id)
+        return {'step': 'choose_category'}
+    else:
+        update_user_state(user_data['sender'], {'step': 'ask_name'})
+        send("Thank you for shopping with us! Have a good day! 😊", user_data['sender'], phone_id)
+        return {'step': 'ask_name'}
+
+def handle_default(prompt, user_data, phone_id):
+    send("Sorry, I didn't understand that. Please try again.", user_data['sender'], phone_id)
+    return {'step': user_data.get('step', 'ask_name')}
+
+# Utility functions
+def get_user_state(phone_number):
+    state = user_states_collection.find_one({'phone_number': phone_number})
+    if state:
+        state['_id'] = str(state['_id'])  # Convert ObjectId to string
+        return state
+    return {'step': 'ask_name', 'sender': phone_number}
+
+def update_user_state(phone_number, updates):
+    updates['phone_number'] = phone_number
+    if 'sender' not in updates:
+        updates['sender'] = phone_number
+    user_states_collection.update_one(
+        {'phone_number': phone_number},
+        {'$set': updates},
+        upsert=True
+    )
+
+def list_categories():
+    order_system = OrderSystem()
     return "\n".join([f"{chr(65+i)}. {cat}" for i, cat in enumerate(order_system.list_categories())])
 
-def list_products(order_system, category_name):
+def list_products(category_name):
+    order_system = OrderSystem()
     products = order_system.list_products(category_name)
-    return "\n".join([f"{i+1}. {p.name} - R{p.price:.2f}: {p.description}" for i, p in enumerate(products)])
+    return "\n".join([f"{i+1}. {p.name} - R{p.price:.2f}" for i, p in enumerate(products)])
 
 def show_cart(user):
     cart = user.get_cart_contents()
@@ -471,6 +765,130 @@ def show_cart(user):
 
 def list_delivery_areas(delivery_areas):
     return "\n".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()])
+
+def send(answer, sender, phone_id):
+    url = f"https://graph.facebook.com/v19.0/{phone_id}/messages"
+    headers = {
+        'Authorization': f'Bearer {wa_token}',
+        'Content-Type': 'application/json'
+    }
+    data = {
+        "messaging_product": "whatsapp",
+        "to": sender,
+        "type": "text",
+        "text": {"body": answer}
+    }
+    try:
+        response = requests.post(url, headers=headers, json=data)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Failed to send message: {e}")
+
+# Action mapping
+action_mapping = {
+    "ask_name": handle_ask_name,
+    "save_name": handle_save_name,
+    "choose_product": handle_choose_product,
+    "ask_quantity": handle_ask_quantity,
+    "post_add_menu": handle_post_add_menu,
+    "get_area": handle_get_area,
+    "ask_checkout": handle_ask_checkout,
+    "get_receiver_name": handle_get_receiver_name,
+    "get_address": handle_get_address,
+    "get_id": handle_get_id,
+    "get_phone": handle_get_phone,
+    "confirm_details": handle_confirm_details,
+    "await_payment_selection": handle_payment_selection,
+    "ask_place_another_order": handle_ask_place_another_order,
+    "choose_delivery_or_pickup": handle_choose_delivery_or_pickup,
+    "get_receiver_name_pickup": handle_get_receiver_name_pickup,
+    "get_id_pickup": handle_get_id_pickup,
+}
+
+def get_action(current_state, prompt, user_data, phone_id):
+    handler = action_mapping.get(current_state, handle_default)
+    return handler(prompt, user_data, phone_id)
+
+# Flask app
+app = Flask(__name__)
+
+@app.route("/", methods=["GET", "POST"])
+def index():
+    return render_template("connected.html")
+
+@app.route("/webhook", methods=["GET", "POST"])
+def webhook():
+    if request.method == "GET":
+        mode = request.args.get("hub.mode")
+        token = request.args.get("hub.verify_token")
+        challenge = request.args.get("hub.challenge")
+        if mode == "subscribe" and token == "BOT":  # Make sure this matches your WhatsApp Business API settings
+            return challenge, 200
+        return "Failed", 403
+
+    elif request.method == "POST":
+        data = request.get_json()
+        logging.info(f"Incoming webhook data: {data}")  # Add logging
+        
+        try:
+            # Extract message data
+            entry = data["entry"][0]
+            changes = entry["changes"][0]
+            value = changes["value"]
+            
+            # Get phone_id from metadata
+            phone_id = value["metadata"]["phone_number_id"]
+            
+            # Get message details
+            messages = value.get("messages", [])
+            if messages:
+                message = messages[0]
+                sender = message["from"]
+                
+                # Handle different message types
+                if "text" in message:
+                    prompt = message["text"]["body"].strip()
+                    message_handler(prompt, sender, phone_id)
+                else:
+                    logging.info("Received non-text message")
+                    send("Please send a text message", sender, phone_id)
+                    
+        except Exception as e:
+            logging.error(f"Error processing webhook: {e}", exc_info=True)
+            
+        return jsonify({"status": "ok"}), 200
+
+def list_all_products():
+    order_system = OrderSystem()
+    products = order_system.get_all_products()
+    return "\n".join([f"{i+1}. {p.name} - R{p.price:.2f}" for i, p in enumerate(products)])
+
+
+def message_handler(prompt, sender, phone_id):
+    text = prompt.strip().lower()
+
+    # Greeting triggers ask_name flow
+    if text in ["hi", "hey", "hie"]:
+        user_state = {'step': 'ask_name', 'sender': sender}
+        updated_state = get_action('ask_name', prompt, user_state, phone_id)
+        update_user_state(sender, updated_state)
+        return
+
+    # Load existing user state
+    user_state = get_user_state(sender)
+    user_state['sender'] = sender
+
+    # Handle 'more' to show next category
+    if text == "more" and user_state.get('step') == 'choose_product':
+        updated_state = handle_next_category(user_state, phone_id)
+        update_user_state(sender, updated_state)
+        return
+
+    # Default step handler
+    updated_state = get_action(user_state['step'], prompt, user_state, phone_id)
+    update_user_state(sender, updated_state)
+
+
 
 
 if __name__ == "__main__":
