@@ -20,7 +20,7 @@ phone_id = os.environ.get("PHONE_ID")
 
 gen_api = os.environ.get("GEN_API")    # Gemini API Key
 owner_phone = os.environ.get("OWNER_PHONE")
-mongo_uri = os.environ.get("MONGO_URI")
+mongo_uri = os.environ.get("MONGO_URI", "mongodb+srv://zimbogrocer:tariel03@zimbogrocer.zhsqhlu.mongodb.net/")
 
 # MongoDB setup
 client = MongoClient(mongo_uri)
