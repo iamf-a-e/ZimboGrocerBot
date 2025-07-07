@@ -86,7 +86,7 @@ class User:
 
 # State handlers
 def handle_ask_name(prompt, user_data, phone_id):
-    send("Hello! Welcome to Zimbogrocer. What's your name?", user_data['sender'], phone_id)
+    send("Hello! Welcome to Zimbogrocer. What's your full name? e.g Mildred Moyo", user_data['sender'], phone_id)
     update_user_state(user_data['sender'], {'step': 'save_name'})
     return {'step': 'save_name'}
 
