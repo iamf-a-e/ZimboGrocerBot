@@ -504,21 +504,9 @@ def handle_get_area(prompt, user_data, phone_id):
                 'user': user.to_dict()
             }
 
-    # HARARE special case
-    if area.lower() == "harare":
-        send("Would you like to *pick up* or *have it delivered*?", user_data['sender'], phone_id)
-        update_user_state(user_data['sender'], {
-            'user': user.to_dict(),
-            'step': 'choose_delivery_or_pickup',
-            'area': area
-        })
-        return {
-            'step': 'choose_delivery_or_pickup',
-            'user': user.to_dict()
-        }
-
+   
     # VALID area
-    elif area in delivery_areas:
+    if area in delivery_areas:
         user.checkout_data["delivery_area"] = area
         fee = delivery_areas[area]
         user.checkout_data["delivery_fee"] = fee
@@ -868,7 +856,8 @@ def handle_payment_selection(selection, user_data, phone_id):
         user.clear_cart()
         update_user_state(sender, {
             'user': user.to_dict(),
-            'step': 'ask_place_another_order'
+            'step': 'ask_place_another_order',
+            'selected_payment_method': selection
         })
     
         return {
@@ -880,7 +869,8 @@ def handle_payment_selection(selection, user_data, phone_id):
         send("Invalid selection. Please enter a number between 1 and 5.", sender, phone_id)
         update_user_state(sender, {
             'user': user.to_dict(),
-            'step': 'await_payment_selection'
+            'step': 'await_payment_selection',
+            'selected_payment_method': selection
         })
         return {
             'step': 'await_payment_selection',
@@ -889,14 +879,30 @@ def handle_payment_selection(selection, user_data, phone_id):
         
 
 def handle_ask_place_another_order(prompt, user_data, phone_id):
-    if prompt.lower() in ["yes", "y"]:
+    if prompt.lower() in ["yes", "y", "1"]:
         update_user_state(user_data['sender'], {'step': 'choose_category'})
         send("Great! Please select a category:\n" + list_categories(), user_data['sender'], phone_id)
         return {'step': 'choose_category'}
     else:
-        update_user_state(user_data['sender'], {'step': 'ask_name'})
-        send("Thank you for shopping with us! Have a good day! 😊", user_data['sender'], phone_id)
+        payment_option = user_data.get("selected_payment_method")
+    
+        if payment_option == "2":
+            send(
+                "Thank you! 🎉\n"
+                "Your *Wicode* will be sent to your WhatsApp number shortly. Please use it to pay at "
+                "SHOPRITE / CHECKERS / USAVE / PICK N PAY / GAME / MAKRO / SPAR.",
+                user_data['sender'], phone_id
+            )
+        else:
+            send(
+                "Once your payment has been made, please send your *Proof of Payment (POP)* to "
+                "*+263785019494* so that delivery can be effected. ✅",
+                user_data['sender'], phone_id
+            )
+    
+        update_user_state(user_data['sender'], {'step': 'ask_name'})  # Restart if needed
         return {'step': 'ask_name'}
+
 
 def handle_default(prompt, user_data, phone_id):
     send("Sorry, I didn't understand that. Please try again.", user_data['sender'], phone_id)
