@@ -3,6 +3,12 @@ class Product:
         self.name = name
         self.price = price
         self.description = description
+        self.stock = stock
+        self.active = stock > 0  # Automatically inactive if stock is 0
+
+    def is_available(self):
+        return self.stock > 0 and self.active
+        
 
 class Category:
     def __init__(self, name):
