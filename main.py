@@ -164,11 +164,14 @@ def handle_save_name(prompt, user_data, phone_id):
 
 
 def handle_next_category(user_data, phone_id):
+    if 'category_names' not in user_data or 'current_category_index' not in user_data:
+        send("Something went wrong. Please start again or type 'menu'.", user_data['sender'], phone_id)
+        return {'step': 'choose_product'}
+
     user = User.from_dict(user_data['user'])
 
-    category_names = user_data.get('category_names', [])
-    current_index = user_data.get('current_category_index', 0)
-
+    category_names = user_data['category_names']
+    current_index = user_data['current_category_index']
     next_index = current_index + 1
 
     if next_index >= len(category_names):
