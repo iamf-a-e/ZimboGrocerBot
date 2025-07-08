@@ -630,7 +630,7 @@ def handle_get_id_pickup(prompt, user_data, phone_id):
         "2. Pay at SHOPRITE/CHECKERS/USAVE/PICK N PAY/ GAME/ MAKRO/ SPAR using Mukuru wicode\n"
         "3. World Remit\n"
         "4. Western Union\n"
-        "5. Mukuru Direct Transfer (DETAILS PROVIDED UPON REQUEST)"
+        "5. Mukuru Direct Transfer"
     )
     send(payment_prompt, user_data['sender'], phone_id)
 
@@ -655,7 +655,7 @@ def handle_get_id_pickup(prompt, user_data, phone_id):
             "2. Pay at SHOPRITE/CHECKERS/USAVE/PICK N PAY/ GAME/ MAKRO/ SPAR using Mukuru wicode\n"
             "3. World Remit\n"
             "4. Western Union\n"
-            "5. Mukuru Direct Transfer (DETAILS PROVIDED UPON REQUEST)"
+            "5. Mukuru Direct Transfer"
         )
         send(payment_prompt, user_data['sender'], phone_id)
 
@@ -774,7 +774,7 @@ def handle_confirm_details(prompt, user_data, phone_id):
             "2. Pay at SHOPRITE/CHECKERS/USAVE/PICK N PAY/ GAME/ MAKRO/ SPAR using Mukuru wicode\n"
             "3. World Remit\n"
             "4. Western Union\n"
-            "5. Mukuru Direct Transfer (DETAILS PROVIDED UPON REQUEST)"
+            "5. Mukuru Direct Transfer"
         )
         send(payment_prompt, sender, phone_id)
 
@@ -823,9 +823,9 @@ def handle_payment_selection(selection, user_data, phone_id):
             "Swift Code: FIRNZAJJ\nReference: " + order_id
         ),
         "2": "Pay at SHOPRITE/CHECKERS/USAVE/PICK N PAY/ GAME/ MAKRO/ SPAR using Mukuru wicode",
-        "3": "World Remit Transfer (details provided upon request)",
-        "4": "Western Union (details provided upon request)",
-        "5": "Mukuru Direct Transfer (DETAILS PROVIDED UPON REQUEST)"
+        "3": "World Remit Transfer",
+        "4": "Western Union",
+        "5": "Mukuru Direct Transfer"
     }
 
     payment_text = payment_methods.get(selection)
