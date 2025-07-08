@@ -473,7 +473,7 @@ def handle_choose_delivery_or_pickup(prompt, user_data, phone_id):
     user = User.from_dict(user_data['user'])
     choice = prompt.strip().lower()
 
-    if choice in ['pickup', 'pick up']:
+    if choice in ['2', 'pickup', 'pick up']:
         update_user_state(user_data['sender'], {
             'user': user.to_dict(),
             'step': 'get_receiver_name_pickup',
@@ -486,7 +486,7 @@ def handle_choose_delivery_or_pickup(prompt, user_data, phone_id):
             'user': user.to_dict()
         }
 
-    elif choice in ['delivery', 'deliver']:
+    elif choice in ['1', 'delivery', 'deliver']:
         delivery_areas = {
             "Harare": 240,
             "Chitungwiza": 300,
@@ -502,20 +502,32 @@ def handle_choose_delivery_or_pickup(prompt, user_data, phone_id):
             "Rusape": 400,
             "Dema": 300
         }
+
+        if not delivery_areas:
+            logging.error("delivery_areas is empty or None.")
+            send("Delivery options are currently unavailable. Please try again later.", user_data['sender'], phone_id)
+            return {'step': 'choose_delivery_or_pickup', 'user': user.to_dict()}
+
         area_names = list(delivery_areas.keys())
-    
+
         update_user_state(user_data['sender'], {
             'user': user.to_dict(),
             'step': 'get_area',
             'delivery_areas': delivery_areas,
             'area_names': area_names
         })
-    
+
         send("Please select your delivery area by number:\n" + list_delivery_areas(delivery_areas), user_data['sender'], phone_id)
         return {
             'step': 'get_area',
             'user': user.to_dict()
         }
+
+    send("Please reply with 1 for Delivery or 2 for Pickup.", user_data['sender'], phone_id)
+    return {
+        'step': 'choose_delivery_or_pickup',
+        'user': user.to_dict()
+    }
 
 
 def handle_get_receiver_name_pickup(prompt, user_data, phone_id):
