@@ -204,7 +204,7 @@ def handle_next_category(user_data, phone_id):
         f"Here are products from *{next_category}*:\n"
         f"{next_products}\n\n"
         f"If you're done shopping in the *{next_category}* category.\n"
-        "Type 'more' to see the next category.",
+        "Type 'more' to see the next category or 'back' to see the previous one.",
         user_data['sender'], phone_id
     )
 
@@ -214,6 +214,47 @@ def handle_next_category(user_data, phone_id):
         'user': user.to_dict(),
         'category_names': category_names,
         'current_category_index': next_index
+    }
+
+
+def handle_previous_category(user_data, phone_id):
+    if 'category_names' not in user_data or 'current_category_index' not in user_data:
+        send("Something went wrong. Please type '4' to restart product browsing.", user_data['sender'], phone_id)
+        return {'step': 'choose_product'}
+
+    user = User.from_dict(user_data['user'])
+    category_names = user_data['category_names']
+    current_index = user_data['current_category_index']
+
+    # Prevent negative index
+    prev_index = max(current_index - 1, 0)
+
+    current_category = category_names[prev_index]
+    order_system = OrderSystem()
+    products_by_cat = order_system.get_products_by_category()
+    product_text = products_by_cat.get(current_category, "No products found.")
+
+    # Update state
+    update_user_state(user_data['sender'], {
+        'step': 'choose_product',
+        'user': user.to_dict(),
+        'category_names': category_names,
+        'current_category_index': prev_index
+    })
+
+    send(
+        f"Here are products from *{current_category}*:\n"
+        f"{product_text}\n\n"
+        f"End of *{current_category}* category.\n"
+        "Type 'more' to see next category or 'back' to see previous one.",
+        user_data['sender'], phone_id
+    )
+
+    return {
+        'step': 'choose_product',
+        'user': user.to_dict(),
+        'category_names': category_names,
+        'current_category_index': prev_index
     }
 
 
@@ -360,7 +401,7 @@ def handle_post_add_menu(prompt, user_data, phone_id):
             f"Sure! Here are products from *{current_category}*:\n"
             f"{first_products}\n\n"
             f"If you're done shopping in the *{current_category}* category.\n"
-            "Type 'more' to see the next category.",
+            "Type 'more' to see the next category or 'back' to see the previous one.",
             user_data['sender'],
             phone_id
         )
@@ -823,6 +864,13 @@ def message_handler(prompt, sender, phone_id):
         updated_state = handle_next_category(user_state, phone_id)
         update_user_state(sender, updated_state)
         return
+        
+
+    if text == "back" and user_state.get('step') == 'choose_product':
+        updated_state = handle_previous_category(user_state, phone_id)
+        update_user_state(sender, updated_state)
+        return
+
 
     # ✅ Safe fallback
     step = user_state.get('step') or 'ask_name'
