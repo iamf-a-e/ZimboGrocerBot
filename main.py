@@ -199,15 +199,532 @@ def handle_ask_quantity(prompt, user_data, phone_id):
         'user': user.to_dict(),
         'step': 'post_add_menu'
     })
-    send("Item added to your cart.
+    send('''Item added to your cart.
 What would you like to do next?
 1. View cart
 2. Clear cart
 3. Remove <item>
-4. Add Item", user_data['sender'], phone_id)
+4. Add Item''', user_data['sender'], phone_id)
     return {'step': 'post_add_menu', 'user': user.to_dict()}
+    
+    except Exception as e:
+            print(f"[ERROR] Exception during cart update: {e}")
+            traceback.print_exc()  # This gives you the exact error and line number
+            send("Something went wrong while adding the item. Please try again.", user_data['sender'], phone_id)
+            return {'step': 'ask_quantity', 'selected_product': user_data.get("selected_product", {})}
+    
 
-# ... (Add all other handlers from your original main.py file here) ...
+def handle_post_add_menu(prompt, user_data, phone_id):
+    user = User.from_dict(user_data['user'])
+    delivery_areas = {
+        "Harare": 240,
+        "Chitungwiza": 300,
+        "Mabvuku": 300,
+        "Ruwa": 300,
+        "Domboshava": 250,
+        "Southlea": 300,
+        "Southview": 300,
+        "Epworth": 300,
+        "Mazoe": 300,
+        "Chinhoyi": 350,
+        "Banket": 350,
+        "Rusape": 400,
+        "Dema": 300
+    }
+    
+   
+    if prompt.lower() in ["view", "view cart", "1"]:   
+        cart_message = show_cart(user)
+        update_user_state(user_data['sender'], {
+            'step': 'get_area',
+            'delivery_areas': delivery_areas
+        })
+        send(cart_message + "\n\nPlease select your delivery area:\n" + list_delivery_areas(delivery_areas), user_data['sender'], phone_id)
+        return {
+            'step': 'get_area',
+            'delivery_areas': delivery_areas,
+            'user': user.to_dict()
+        }
+
+    elif prompt.lower() in ["clear", "clear cart", "2"]:    
+        user.clear_cart()
+        update_user_state(user_data['sender'], {
+            'user': user.to_dict(),
+            'step': 'post_add_menu'
+        })
+        send("Cart cleared.\nWhat would you like to do next?\n1 View cart\n4 Add Item", user_data['sender'], phone_id)
+        return {
+            'step': 'post_add_menu',
+            'user': user.to_dict()
+        }
+    elif prompt.lower() in ["remove", "3"]:     
+        item = prompt[7:].strip()
+        user.remove_from_cart(item)
+        update_user_state(user_data['sender'], {
+            'user': user.to_dict(),
+            'step': 'post_add_menu'
+        })
+        send(f"{item} removed from cart.\n{show_cart(user)}\nWhat would you like to do next?\n1 View cart\n4 Add Item", user_data['sender'], phone_id)
+        return {
+            'step': 'post_add_menu',
+            'user': user.to_dict()
+        }
+    elif prompt.lower() in ["add", "add item", "add another", "add more", "4"]:
+        # Set step to 'choose_product' (not 'save_name')
+        order_system = OrderSystem()
+        categories_products = order_system.get_products_by_category()  # dict {category_name: formatted_str}
+    
+        # Save state for category navigation
+        category_names = list(categories_products.keys())
+        current_index = 0
+        first_category = category_names[current_index]
+        first_products = categories_products[first_category]
+    
+        update_user_state(user_data['sender'], {
+            'step': 'choose_product',
+            'user': user.to_dict(),
+            'category_names': category_names,
+            'current_category_index': current_index
+        })
+    
+        send(
+            f"Sure! Here are products from {first_category}:\n"
+            f"{first_products}\n\nReply 'more' to see next category.",
+            user_data['sender'],
+            phone_id
+        )
+    
+        return {
+            'step': 'choose_product',
+            'user': user.to_dict()
+        }
+
+def handle_get_area(prompt, user_data, phone_id):
+    user = User.from_dict(user_data['user'])
+    delivery_areas = user_data['delivery_areas']
+    area = prompt.strip().title()
+
+    if area.lower() == "harare":
+        send("Would you like to *pick up* or *have it delivered*?", user_data['sender'], phone_id)
+        update_user_state(user_data['sender'], {
+            'user': user.to_dict(),
+            'step': 'choose_delivery_or_pickup',
+            'area': area
+        })
+        return {
+            'step': 'choose_delivery_or_pickup',
+            'user': user.to_dict()
+        }
+
+    elif area in delivery_areas:
+        user.checkout_data["delivery_area"] = area
+        fee = delivery_areas[area]
+        user.checkout_data["delivery_fee"] = fee
+        delivery_product = Product(f"Delivery to {area}", fee, "Delivery fee")
+        user.add_to_cart(delivery_product, 1)
+
+        update_user_state(user_data['sender'], {
+            'user': user.to_dict(),
+            'step': 'ask_checkout'
+        })
+
+        send(f"{show_cart(user)}\nWould you like to checkout? (yes/no)", user_data['sender'], phone_id)
+        return {
+            'step': 'ask_checkout',
+            'user': user.to_dict()
+        }
+
+    else:
+        send(f"Invalid area. Please choose from:\n{list_delivery_areas(delivery_areas)}", user_data['sender'], phone_id)
+        return {
+            'step': 'get_area',
+            'delivery_areas': delivery_areas,
+            'user': user.to_dict()
+        }
+
+def handle_choose_delivery_or_pickup(prompt, user_data, phone_id):
+    user = User.from_dict(user_data['user'])
+    choice = prompt.strip().lower()
+
+    if choice in ['pickup', 'pick up']:
+        update_user_state(user_data['sender'], {
+            'user': user.to_dict(),
+            'step': 'get_receiver_name_pickup',
+            'delivery_type': 'pickup',
+            'area': 'Harare'
+        })
+        send("What's the full name of the receiver?", user_data['sender'], phone_id)
+        return {
+            'step': 'get_receiver_name_pickup',
+            'user': user.to_dict()
+        }
+
+    elif choice in ['delivery', 'deliver']:
+        user.checkout_data['area'] = 'Harare'
+        update_user_state(user_data['sender'], {
+            'user': user.to_dict(),
+            'step': 'get_receiver_name',
+            'delivery_type': 'delivery',
+            'area': 'Harare'
+        })
+        send("What's the full name of the receiver?", user_data['sender'], phone_id)
+        return {
+            'step': 'get_receiver_name',
+            'user': user.to_dict()
+        }
+
+    send("Please reply with *pickup* or *delivery*.", user_data['sender'], phone_id)
+    return {
+        'step': 'choose_delivery_or_pickup',
+        'user': user.to_dict()
+    }
+
+def handle_get_receiver_name_pickup(prompt, user_data, phone_id):
+    user = User.from_dict(user_data['user'])
+    user.checkout_data['receiver_name'] = prompt.strip()
+
+    update_user_state(user_data['sender'], {
+        'user': user.to_dict(),
+        'step': 'get_id_pickup'
+    })
+    send("Please provide the receiver's ID number.", user_data['sender'], phone_id)
+    return {
+        'step': 'get_id_pickup',
+        'user': user.to_dict()
+    }
+
+
+def handle_get_id_pickup(prompt, user_data, phone_id):
+    user = User.from_dict(user_data['user'])
+    user.checkout_data['receiver_id'] = prompt.strip()
+
+    # Send pickup address and proceed to payment
+    send(
+        "Thanks! Please collect your order at:\n"
+        "*123 Main Street, Harare CBD*\n"
+        "Hours: 8am - 5pm, Mon-Sat.\n\n"
+        "Now let's choose a payment method.",
+        user_data['sender'], phone_id
+    )
+
+    payment_prompt = (
+        "Please select a payment method:\n"
+        "1. EFT\n"
+        "2. Pay at SHOPRITE/CHECKERS/USAVE/PICK N PAY/ GAME/ MAKRO/ SPAR using Mukuru wicode\n"
+        "3. World Remit\n"
+        "4. Western Union\n"
+        "5. Mukuru Direct Transfer (DETAILS PROVIDED UPON REQUEST)"
+    )
+    send(payment_prompt, user_data['sender'], phone_id)
+
+    update_user_state(user_data['sender'], {
+        'user': user.to_dict(),
+        'step': 'await_payment_selection'
+    })
+
+    return {
+        'step': 'await_payment_selection',
+        'user': user.to_dict()
+    }
+
+    
+    if user.checkout_data.get("delivery_method") == "pickup":
+        send("Pickup Address:\n42A Mbuya Nehanda St, Harare\nMon–Fri, 9am–5pm", user_data['sender'], phone_id)
+
+        # Proceed to payment options
+        payment_prompt = (
+            "Please select a payment method:\n"
+            "1. EFT\n"
+            "2. Pay at SHOPRITE/CHECKERS/USAVE/PICK N PAY/ GAME/ MAKRO/ SPAR using Mukuru wicode\n"
+            "3. World Remit\n"
+            "4. Western Union\n"
+            "5. Mukuru Direct Transfer (DETAILS PROVIDED UPON REQUEST)"
+        )
+        send(payment_prompt, user_data['sender'], phone_id)
+
+        update_user_state(user_data['sender'], {
+            'user': user.to_dict(),
+            'step': 'await_payment_selection'
+        })
+        return {
+            'step': 'await_payment_selection',
+            'user': user.to_dict()
+        }
+
+    else:
+        # Proceed to get phone for delivery flow
+        update_user_state(user_data['sender'], {
+            'user': user.to_dict(),
+            'step': 'get_phone'
+        })
+        send("Please provide the receiver's phone number.", user_data['sender'], phone_id)
+        return {
+            'step': 'get_phone',
+            'user': user.to_dict()
+        }
+
+
+def handle_ask_checkout(prompt, user_data, phone_id):
+    user = User.from_dict(user_data['user'])
+    
+    if prompt.lower() in ["yes", "y"]:
+        update_user_state(user_data['sender'], {'step': 'get_receiver_name'})
+        send("Please enter the receiver's full name as on national ID.", user_data['sender'], phone_id)
+        return {'step': 'get_receiver_name', 'user': user.to_dict()}
+    elif prompt.lower() in ["no", "n"]:
+        # Remove delivery fee if added
+        user.remove_from_cart("Delivery to")
+        update_user_state(user_data['sender'], {
+            'user': user.to_dict(),
+            'step': 'post_add_menu'
+        })
+        send("What would you like to do next?\n1 View cart\n2 Clear cart\n3 Remove <item>\n4 Add Item", user_data['sender'], phone_id)
+        return {'step': 'post_add_menu', 'user': user.to_dict()}
+    else:
+        send("Please respond with 'yes' or 'no'.", user_data['sender'], phone_id)
+        return {'step': 'ask_checkout', 'user': user.to_dict()}
+
+def handle_get_receiver_name(prompt, user_data, phone_id):
+    user = User.from_dict(user_data['user'])
+    user.checkout_data["receiver_name"] = prompt
+    update_user_state(user_data['sender'], {
+        'user': user.to_dict(),
+        'step': 'get_address'
+    })
+    send("Enter the delivery address.", user_data['sender'], phone_id)
+    return {
+        'step': 'get_address',
+        'user': user.to_dict()
+    }
+
+def handle_get_address(prompt, user_data, phone_id):
+    user = User.from_dict(user_data['user'])
+    user.checkout_data["address"] = prompt
+    update_user_state(user_data['sender'], {
+        'user': user.to_dict(),
+        'step': 'get_id'
+    })
+    send("Enter receiver's ID number.", user_data['sender'], phone_id)
+    return {
+        'step': 'get_id',
+        'user': user.to_dict()
+    }
+
+def handle_get_id(prompt, user_data, phone_id):
+    user = User.from_dict(user_data['user'])
+    user.checkout_data["receiver_id"] = prompt
+    update_user_state(user_data['sender'], {
+        'user': user.to_dict(),
+        'step': 'get_phone'
+    })
+    send("Enter receiver's phone number.", user_data['sender'], phone_id)
+    return {
+        'step': 'get_phone',
+        'user': user.to_dict()
+    }
+
+def handle_get_phone(prompt, user_data, phone_id):
+    user = User.from_dict(user_data['user'])
+    user.checkout_data["phone"] = prompt
+    details = user.checkout_data
+    confirm_message = (
+        f"Please confirm the details below:\n\n"
+        f"Name: {details['receiver_name']}\n"
+        f"Address: {user.checkout_data.get('address', 'N/A')}\n"
+        f"ID: {details['receiver_id']}\n"
+        f"Phone: {details['phone']}\n\n"
+        "Are these correct? (yes/no)"
+    )
+    update_user_state(user_data['sender'], {
+        'user': user.to_dict(),
+        'step': 'confirm_details'
+    })
+    send(confirm_message, user_data['sender'], phone_id)
+    return {
+        'step': 'confirm_details',
+        'user': user.to_dict()
+    }
+
+def handle_confirm_details(prompt, user_data, phone_id):
+    user = User.from_dict(user_data['user'])
+
+    if prompt.lower() in ["yes", "y"]:
+        # Ask the user to select a payment method
+        payment_prompt = (
+            "Please select a payment method:\n"
+            "1. EFT\n"
+            "2. Pay at SHOPRITE/CHECKERS/USAVE/PICK N PAY/ GAME/ MAKRO/ SPAR using Mukuru wicode\n"
+            "3. World Remit\n"
+            "4. Western Union\n"
+            "5. Mukuru Direct Transfer (DETAILS PROVIDED UPON REQUEST)"
+        )
+        send(payment_prompt, user_data['sender'], phone_id)
+
+        # Update state to wait for payment method selection
+        update_user_state(user_data['sender'], {
+            'user': user.to_dict(),
+            'step': 'await_payment_selection'
+        })
+
+        return {
+            'step': 'await_payment_selection',
+            'user': user.to_dict()
+        }
+
+
+def handle_payment_selection(selection, user_data, phone_id):
+    user = User.from_dict(user_data['user'])
+    order_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+
+    # Map selection to payment method
+    payment_methods = {
+        "1": (
+            "EFT\nBank: FNB\nName: Zimbogrocer (Pty) Ltd\n"
+            "Account: 62847698167\nBranch Code: 250655\n"
+            "Swift Code: FIRNZAJJ\nReference: " + order_id
+        ),
+        "2": "Pay at SHOPRITE/CHECKERS/USAVE/PICK N PAY/ GAME/ MAKRO/ SPAR using Mukuru wicode",
+        "3": "World Remit Transfer (details provided upon request)",
+        "4": "Western Union (details provided upon request)",
+        "5": "Mukuru Direct Transfer (DETAILS PROVIDED UPON REQUEST)"
+    }
+
+    payment_text = payment_methods.get(selection)
+    if payment_text:
+        # Save order to DB
+        order_data = {
+            'order_id': order_id,
+            'user_data': user.to_dict(),
+            'timestamp': datetime.now(),
+            'status': 'pending',
+            'total_amount': user.get_cart_total()
+        }
+        orders_collection.insert_one(order_data)
+    
+        # Notify owner
+        owner_message = (
+            f"New Order #{order_id}\n"
+            f"From: {user.payer_name} ({user.payer_phone})\n"
+            f"Receiver: {user.checkout_data['receiver_name']}\n"
+            f"ID: {user.checkout_data['receiver_id']}\n"
+            f"Address: {user.checkout_data.get('address', 'N/A')}\n"
+            f"Phone: {user.checkout_data.get('phone', 'N/A')}\n"
+            f"Payment Method: {payment_text}\n\n"
+            f"Items:\n{show_cart(user)}"
+        )
+        send(owner_message, owner_phone, phone_id)
+    
+        # Send confirmation to user
+        send(
+            f"Order placed! 🛒\nOrder ID: {order_id}\n\n"
+            f"{show_cart(user)}\n\n"
+            f"Receiver: {user.checkout_data['receiver_name']}\n"
+            f"ID: {user.checkout_data['receiver_id']}\n"
+            f"Address: {user.checkout_data.get('address', 'N/A')}\n"
+            f"Phone: {user.checkout_data.get('phone', 'N/A')}\n\n"
+            f"Payment Method: {payment_text}\n\n"
+            f"Would you like to place another order? (yes/no)",
+            user_data['sender'], phone_id
+        )
+
+        # Save the message to Redis
+        message_key = f"user_message:{order_id}"
+        redis_client.setex(message_key, user_message)  
+    
+        # Clear cart and update state
+        user.clear_cart()
+        update_user_state(user_data['sender'], {
+            'user': user.to_dict(),
+            'step': 'ask_place_another_order'
+        })
+    
+        return {
+            'step': 'ask_place_another_order',
+            'user': user.to_dict()
+        }
+    
+    else:
+        send("Invalid selection. Please enter a number between 1 and 5.", user_data['sender'], phone_id)
+        update_user_state(user_data['sender'], {
+            'user': user.to_dict(),
+            'step': 'await_payment_selection'
+        })
+        return {
+            'step': 'await_payment_selection',
+            'user': user.to_dict()
+        }
+
+
+def handle_ask_place_another_order(prompt, user_data, phone_id):
+    if prompt.lower() in ["yes", "y"]:
+        update_user_state(user_data['sender'], {'step': 'choose_category'})
+        send("Great! Please select a category:\n" + list_categories(), user_data['sender'], phone_id)
+        return {'step': 'choose_category'}
+    else:
+        update_user_state(user_data['sender'], {'step': 'ask_name'})
+        send("Thank you for shopping with us! Have a good day! 😊", user_data['sender'], phone_id)
+        return {'step': 'ask_name'}
+
+def handle_default(prompt, user_data, phone_id):
+    send("Sorry, I didn't understand that. Please try again.", user_data['sender'], phone_id)
+    return {'step': user_data.get('step', 'ask_name')}
+
+# Utility functions
+def get_user_state(phone_number):
+    state = user_states_collection.find_one({'phone_number': phone_number})
+    if state:
+        state['_id'] = str(state['_id'])  # Convert ObjectId to string
+        return state
+    return {'step': 'ask_name', 'sender': phone_number}
+
+def update_user_state(phone_number, updates):
+    updates['phone_number'] = phone_number
+    if 'sender' not in updates:
+        updates['sender'] = phone_number
+    user_states_collection.update_one(
+        {'phone_number': phone_number},
+        {'$set': updates},
+        upsert=True
+    )
+
+def list_categories():
+    order_system = OrderSystem()
+    return "\n".join([f"{chr(65+i)}. {cat}" for i, cat in enumerate(order_system.list_categories())])
+
+def list_products(category_name):
+    order_system = OrderSystem()
+    products = order_system.list_products(category_name)
+    return "\n".join([f"{i+1}. {p.name} - R{p.price:.2f}" for i, p in enumerate(products)])
+
+def show_cart(user):
+    cart = user.get_cart_contents()
+    if not cart:
+        return "Your cart is empty."
+    lines = [f"{p.name} x{q} = R{p.price*q:.2f}" for p, q in cart]
+    total = sum(p.price*q for p, q in cart)
+    return "\n".join(lines) + f"\n\nTotal: R{total:.2f}"
+
+def list_delivery_areas(delivery_areas):
+    return "\n".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()])
+
+def send(answer, sender, phone_id):
+    url = f"https://graph.facebook.com/v19.0/{phone_id}/messages"
+    headers = {
+        'Authorization': f'Bearer {wa_token}',
+        'Content-Type': 'application/json'
+    }
+    data = {
+        "messaging_product": "whatsapp",
+        "to": sender,
+        "type": "text",
+        "text": {"body": answer}
+    }
+    try:
+        response = requests.post(url, headers=headers, json=data)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Failed to send message: {e}")
+
 
 # Action mapping
 action_mapping = {
