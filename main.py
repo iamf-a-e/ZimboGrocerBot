@@ -776,6 +776,7 @@ def handle_get_phone(prompt, user_data, phone_id):
 
 def handle_confirm_details(prompt, user_data, phone_id):
     user = User.from_dict(user_data['user'])
+    sender = user_data['sender']
 
     if prompt.lower() in ["yes", "y"]:
         # Ask the user to select a payment method
