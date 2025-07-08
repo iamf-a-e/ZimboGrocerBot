@@ -207,13 +207,7 @@ What would you like to do next?
 4. Add Item''', user_data['sender'], phone_id)
     return {'step': 'post_add_menu', 'user': user.to_dict()}
     
-    except Exception as e:
-            print(f"[ERROR] Exception during cart update: {e}")
-            traceback.print_exc()  # This gives you the exact error and line number
-            send("Something went wrong while adding the item. Please try again.", user_data['sender'], phone_id)
-            return {'step': 'ask_quantity', 'selected_product': user_data.get("selected_product", {})}
     
-
 def handle_post_add_menu(prompt, user_data, phone_id):
     user = User.from_dict(user_data['user'])
     delivery_areas = {
