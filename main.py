@@ -419,25 +419,63 @@ def handle_await_remove_item(prompt, user_data, phone_id):
     try:
         index = int(prompt.strip()) - 1
         if 0 <= index < len(cart):
-            product_to_remove = cart[index][0].name
-            user.remove_from_cart(product_to_remove)
-
+            product, quantity = cart[index]
             update_user_state(user_data['sender'], {
-                'user': user.to_dict(),
-                'step': 'post_add_menu'
+                'step': 'await_remove_quantity',
+                'selected_remove_item': {
+                    'name': product.name,
+                    'max_qty': quantity
+                },
+                'user': user.to_dict()
             })
-
-            send(
-                f"{product_to_remove} removed from cart.\n{show_cart(user)}\n"
-                "What would you like to do next?\n1 View Groceries Selected\n4 Add Item",
-                user_data['sender'], phone_id
-            )
-            return {'step': 'post_add_menu', 'user': user.to_dict()}
+            send(f"How many of *{product.name}* would you like to remove? (You have {quantity})", user_data['sender'], phone_id)
+            return {'step': 'await_remove_quantity', 'user': user.to_dict()}
         else:
             raise IndexError
     except:
         send("❌ Invalid selection. Please enter a valid item number.", user_data['sender'], phone_id)
         return {'step': 'await_remove_item', 'user': user.to_dict()}
+
+def handle_await_remove_quantity(prompt, user_data, phone_id):
+    user = User.from_dict(user_data['user'])
+    selected = user_data.get('selected_remove_item', {})
+    item_name = selected.get('name')
+    max_qty = selected.get('max_qty', 0)
+
+    try:
+        qty_to_remove = int(prompt.strip())
+        if qty_to_remove < 1 or qty_to_remove > max_qty:
+            raise ValueError
+    except:
+        send(f"❌ Invalid quantity. Please enter a number between 1 and {max_qty}.", user_data['sender'], phone_id)
+        return {'step': 'await_remove_quantity', 'user': user.to_dict(), 'selected_remove_item': selected}
+
+    # Adjust cart
+    updated_cart = []
+    for item in user.cart:
+        if item['product'].name == item_name:
+            if item['quantity'] > qty_to_remove:
+                item['quantity'] -= qty_to_remove
+                updated_cart.append(item)
+            else:
+                # remove item entirely
+                continue
+        else:
+            updated_cart.append(item)
+
+    user.cart = updated_cart
+
+    update_user_state(user_data['sender'], {
+        'user': user.to_dict(),
+        'step': 'post_add_menu'
+    })
+
+    send(
+        f"✅ Removed {qty_to_remove} x {item_name}.\n{show_cart(user)}\n"
+        "What would you like to do next?\n1 View Groceries Selected\n4 Add Item",
+        user_data['sender'], phone_id
+    )
+    return {'step': 'post_add_menu', 'user': user.to_dict()}
 
 
 def handle_get_area(prompt, user_data, phone_id):
