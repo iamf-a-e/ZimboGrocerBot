@@ -214,9 +214,22 @@ def handle_next_category(user_data, phone_id):
 def handle_choose_product(prompt, user_data, phone_id):
     try:
         index = int(prompt) - 1
+        if index < 0:
+            raise ValueError
+
+        # ✅ Get current category from state
+        category_names = user_data.get("category_names", [])
+        current_index = user_data.get("current_category_index", 0)
+
+        if not category_names or current_index >= len(category_names):
+            send("Your session expired. Please type '4' to add an item again.", user_data['sender'], phone_id)
+            return {'step': 'choose_product'}
+
+        current_category = category_names[current_index]
         order_system = OrderSystem()
-        products = order_system.get_all_products()
-        if 0 <= index < len(products):
+        products = order_system.list_products(current_category)
+
+        if index < len(products):
             selected_product = products[index]
             update_user_state(user_data['sender'], {
                 'selected_product': selected_product.__dict__,
@@ -227,9 +240,11 @@ def handle_choose_product(prompt, user_data, phone_id):
         else:
             send("Invalid product number. Try again.", user_data['sender'], phone_id)
             return {'step': 'choose_product'}
+
     except:
         send("Please enter a valid product number.", user_data['sender'], phone_id)
         return {'step': 'choose_product'}
+
 
 def handle_ask_quantity(prompt, user_data, phone_id):
     try:
