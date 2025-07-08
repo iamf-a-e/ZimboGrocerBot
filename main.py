@@ -116,23 +116,6 @@ def list_delivery_areas(areas):
         [f"{i+1}. {area} - ${fee}" for i, (area, fee) in enumerate(areas.items())]
     )
 
-def send(answer, sender, phone_id):
-    url = f"https://graph.facebook.com/v19.0/{phone_id}/messages"
-    headers = {
-        'Authorization': f'Bearer {wa_token}',
-        'Content-Type': 'application/json'
-    }
-    data = {
-        "messaging_product": "whatsapp",
-        "to": sender,
-        "type": "text",
-        "text": {"body": answer}
-    }
-    try:
-        response = requests.post(url, headers=headers, json=data)
-        response.raise_for_status()
-    except requests.exceptions.RequestException as e:
-        logging.error(f"Failed to send message: {e}")
 
 # Handlers
 def handle_ask_name(prompt, user_data, phone_id):
@@ -959,6 +942,14 @@ def show_cart(user):
 
 
 def send(answer, sender, phone_id):
+    if not sender or not isinstance(sender, str) or not sender.isdigit():
+        logging.error(f"❌ Invalid sender: {sender}")
+        return
+
+    if not answer or not isinstance(answer, str) or not answer.strip():
+        logging.error("❌ Message body is empty or invalid.")
+        return
+
     url = f"https://graph.facebook.com/v19.0/{phone_id}/messages"
     headers = {
         'Authorization': f'Bearer {wa_token}',
@@ -970,11 +961,17 @@ def send(answer, sender, phone_id):
         "type": "text",
         "text": {"body": answer}
     }
+
+    logging.info(f"📤 Sending message to {sender}: {json.dumps(data)}")
+
     try:
         response = requests.post(url, headers=headers, json=data)
         response.raise_for_status()
+        logging.info(f"✅ Message sent successfully: {response.text}")
     except requests.exceptions.RequestException as e:
-        logging.error(f"Failed to send message: {e}")
+        logging.error(f"❌ Failed to send message: {e}")
+        if e.response is not None:
+            logging.error(f"❗ Response content: {e.response.text}")
 
 
 # Action mapping
