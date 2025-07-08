@@ -199,9 +199,13 @@ def handle_next_category(user_data, phone_id):
     })
 
     send(
-        f"Here are products from {next_category}:\n{next_products}\n\nReply 'more' to see next category.",
+        f"Here are products from *{next_category}*:\n"
+        f"{next_products}\n\n"
+        f"End of *{next_category}* category.\n"
+        "Type 'more' to see the next category.",
         user_data['sender'], phone_id
     )
+
 
     return {
         'step': 'choose_product',
