@@ -268,7 +268,9 @@ class OrderSystem:
         return list(self.categories.keys())
 
     def list_products(self, category_name):
-        return self.categories[category_name].products if category_name in self.categories else []
+        if category_name in self.categories:
+            return [p for p in self.categories[category_name].products if p.is_available()]
+        return []
 
     def get_all_products(self):
         all_products = []
