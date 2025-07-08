@@ -665,7 +665,7 @@ def handle_default(prompt, user_data, phone_id):
 
 # Utility functions
 def get_user_state(phone_number):
-    state = user_states_collection.find_one({'phone_number': phone_number})
+    get_user_state(phone_number)
     if state:
         state['_id'] = str(state['_id'])  # Convert ObjectId to string
         return state
@@ -675,11 +675,8 @@ def update_user_state(phone_number, updates):
     updates['phone_number'] = phone_number
     if 'sender' not in updates:
         updates['sender'] = phone_number
-    user_states_collection.update_one(
-        {'phone_number': phone_number},
-        {'$set': updates},
-        upsert=True
-    )
+    update_user_state(phone_number, updates)
+
 
 def list_categories():
     order_system = OrderSystem()
