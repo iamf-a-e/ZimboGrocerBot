@@ -766,7 +766,7 @@ def handle_confirm_details(prompt, user_data, phone_id):
     user = User.from_dict(user_data['user'])
     sender = user_data['sender']
 
-    if prompt.lower() in ["yes", "y"]:
+    if prompt.lower() in ["yes", "y", "1"]:
         # Ask the user to select a payment method
         payment_prompt = (
             "Please select a payment method:\n"
@@ -776,16 +776,36 @@ def handle_confirm_details(prompt, user_data, phone_id):
             "4. Western Union\n"
             "5. Mukuru Direct Transfer (DETAILS PROVIDED UPON REQUEST)"
         )
-        send(payment_prompt, user_data['sender'], phone_id)
+        send(payment_prompt, sender, phone_id)
 
-        # Update state to wait for payment method selection
-        update_user_state(user_data['sender'], {
+        update_user_state(sender, {
             'user': user.to_dict(),
             'step': 'await_payment_selection'
         })
 
         return {
             'step': 'await_payment_selection',
+            'user': user.to_dict()
+        }
+
+    elif prompt.lower() in ["no", "n", "2"]:
+        # User wants to correct delivery details — restart flow from receiver name
+        send("No problem! Let's correct the details.\nPlease enter the receiver's full name again.", sender, phone_id)
+
+        update_user_state(sender, {
+            'user': user.to_dict(),
+            'step': 'get_receiver_name'
+        })
+
+        return {
+            'step': 'get_receiver_name',
+            'user': user.to_dict()
+        }
+
+    else:
+        send("Please reply with 'yes' or 'no'.", sender, phone_id)
+        return {
+            'step': 'confirm_details',
             'user': user.to_dict()
         }
 
