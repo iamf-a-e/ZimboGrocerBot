@@ -165,12 +165,16 @@ def reduce_stock(user):
 
 
 
-def admin_set_stock(product_name, stock_value):
+def admin_set_stock(self, product_name, stock_value):
     for category in self.categories:
-        for product in self.categories[category]:
-            if product.name.lower() == product_name.lower():
+        for product in self.categories[category].products:
+            if product.name.strip().lower() == product_name.strip().lower():
                 product.stock = stock_value
                 product.active = stock_value > 0
+                print(f"Stock updated: {product.name} is now {'active' if product.active else 'inactive'} with {product.stock} in stock.")
+                return
+    print("Product not found.")
+
 
 
 def handle_next_category(user_data, phone_id):
