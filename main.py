@@ -161,6 +161,41 @@ def handle_save_name(prompt, user_data, phone_id):
 
     return {'step': 'choose_product', 'user': user.to_dict()}
 
+
+def handle_next_category(user_data, phone_id):
+    user = User.from_dict(user_data['user'])
+    order_system = OrderSystem()
+
+    category_names = user_data.get("category_names", [])
+    current_index = user_data.get("current_category_index", 0) + 1
+
+    if current_index >= len(category_names):
+        send("No more categories available.", user_data['sender'], phone_id)
+        return {
+            'step': 'post_add_menu',
+            'user': user.to_dict()
+        }
+
+    next_category = category_names[current_index]
+    products = order_system.get_products_by_category().get(next_category, "No products found.")
+
+    update_user_state(user_data['sender'], {
+        'step': 'choose_product',
+        'user': user.to_dict(),
+        'category_names': category_names,
+        'current_category_index': current_index
+    })
+
+    send(f"Here are products from {next_category}:\n{products}\n\nReply 'more' to see next category.",
+         user_data['sender'], phone_id)
+
+    return {
+        'step': 'choose_product',
+        'user': user.to_dict(),
+        'category_names': category_names,
+        'current_category_index': current_index
+    }
+
 def handle_choose_product(prompt, user_data, phone_id):
     try:
         index = int(prompt) - 1
