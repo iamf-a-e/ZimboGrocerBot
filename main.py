@@ -837,7 +837,6 @@ action_mapping = {
     "choose_product": handle_choose_product,
     "ask_quantity": handle_ask_quantity,
     "post_add_menu": handle_post_add_menu,
-    "cart_next_action": handle_cart_next_action,
     "get_area": handle_get_area,
     "ask_checkout": handle_ask_checkout,
     "get_receiver_name": handle_get_receiver_name,
