@@ -154,7 +154,7 @@ def handle_save_name(prompt, user_data, phone_id):
     })
 
     send(
-    f"Thanks {user.payer_name}! Here are products from {current_category}:\n"
+    f"Thanks {user.payer_name}! Here are products from {first_category}:\n"
     f"{first_products}\n\n"
     "Reply 'more' to see next category.",
     user_data['sender'], phone_id
