@@ -696,11 +696,11 @@ def handle_get_id_pickup(prompt, user_data, phone_id):
 def handle_ask_checkout(prompt, user_data, phone_id):
     user = User.from_dict(user_data['user'])
     
-    if prompt.lower() in ["yes", "y"]:
+    if prompt.lower() in ["yes", "y", "1"]:
         update_user_state(user_data['sender'], {'step': 'get_receiver_name'})
         send("Please enter the receiver's full name as on national ID.", user_data['sender'], phone_id)
         return {'step': 'get_receiver_name', 'user': user.to_dict()}
-    elif prompt.lower() in ["no", "n"]:
+    elif prompt.lower() in ["no", "n", "2"]:
         # Remove delivery fee if added
         user.remove_from_cart("Delivery to")
         update_user_state(user_data['sender'], {
