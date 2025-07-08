@@ -86,12 +86,13 @@ def get_user_state(phone_number):
     return {'step': 'ask_name', 'sender': phone_number}
 
 def update_user_state(phone_number, updates):
-    updates['phone_number'] = phone_number
-    if 'sender' not in updates:
-        updates['sender'] = phone_number
-    redis_client.setex(f"user_state:{phone_number}", 86400, json.dumps(updates))
+    current = get_user_state(phone_number)  # Load existing state
+    current.update(updates)                 # Merge changes
+    current['phone_number'] = phone_number
+    if 'sender' not in current:
+        current['sender'] = phone_number
+    redis_client.setex(f"user_state:{phone_number}", 86400, json.dumps(current))
 
-# Utility
 
 def list_categories():
     order_system = OrderSystem()
