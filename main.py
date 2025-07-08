@@ -760,7 +760,9 @@ def message_handler(prompt, sender, phone_id):
         update_user_state(sender, updated_state)
         return
 
-    updated_state = get_action(user_state['step'], prompt, user_state, phone_id)
+    # ✅ Safe fallback
+    step = user_state.get('step') or 'ask_name'
+    updated_state = get_action(step, prompt, user_state, phone_id)
     update_user_state(sender, updated_state)
 
 # Flask app
