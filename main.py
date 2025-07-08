@@ -804,6 +804,7 @@ def handle_confirm_details(prompt, user_data, phone_id):
 def handle_payment_selection(selection, user_data, phone_id):
     user = User.from_dict(user_data['user'])
     order_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+    sender = user_data['sender']  # Get sender from user_data
 
     # Map selection to payment method
     payment_methods = {
@@ -820,15 +821,21 @@ def handle_payment_selection(selection, user_data, phone_id):
 
     payment_text = payment_methods.get(selection)
     if payment_text:
-        # Save order to DB
+        # Save order to Redis
         order_data = {
             'order_id': order_id,
             'user_data': user.to_dict(),
-            'timestamp': datetime.now(),
+            'timestamp': datetime.now().isoformat(),
             'status': 'pending',
-            'total_amount': user.get_cart_total()
+            'total_amount': user.get_cart_total(),
+            'payment_method': payment_text
         }
-        orders_collection.insert_one(order_data)
+        
+        # Store order in Redis with expiration (7 days)
+        redis_client.setex(f"order:{order_id}", 604800, json.dumps(order_data))
+        
+        # Also store order ID in user's order list
+        redis_client.lpush(f"user_orders:{sender}", order_id)
     
         # Notify owner
         owner_message = (
@@ -844,7 +851,7 @@ def handle_payment_selection(selection, user_data, phone_id):
         send(owner_message, owner_phone, phone_id)
     
         # Send confirmation to user
-        send(
+        confirmation_message = (
             f"Order placed! 🛒\nOrder ID: {order_id}\n\n"
             f"{show_cart(user)}\n\n"
             f"Receiver: {user.checkout_data['receiver_name']}\n"
@@ -852,17 +859,13 @@ def handle_payment_selection(selection, user_data, phone_id):
             f"Address: {user.checkout_data.get('address', 'N/A')}\n"
             f"Phone: {user.checkout_data.get('phone', 'N/A')}\n\n"
             f"Payment Method: {payment_text}\n\n"
-            f"Would you like to place another order? (yes/no)",
-            user_data['sender'], phone_id
+            f"Would you like to place another order? (yes/no)"
         )
+        send(confirmation_message, sender, phone_id)
 
-        # Save the message to Redis
-        message_key = f"user_message:{order_id}"
-        redis_client.setex(message_key, user_message)  
-    
         # Clear cart and update state
         user.clear_cart()
-        update_user_state(user_data['sender'], {
+        update_user_state(sender, {
             'user': user.to_dict(),
             'step': 'ask_place_another_order'
         })
@@ -873,8 +876,8 @@ def handle_payment_selection(selection, user_data, phone_id):
         }
     
     else:
-        send("Invalid selection. Please enter a number between 1 and 5.", user_data['sender'], phone_id)
-        update_user_state(user_data['sender'], {
+        send("Invalid selection. Please enter a number between 1 and 5.", sender, phone_id)
+        update_user_state(sender, {
             'user': user.to_dict(),
             'step': 'await_payment_selection'
         })
@@ -882,7 +885,7 @@ def handle_payment_selection(selection, user_data, phone_id):
             'step': 'await_payment_selection',
             'user': user.to_dict()
         }
-
+        
 
 def handle_ask_place_another_order(prompt, user_data, phone_id):
     if prompt.lower() in ["yes", "y"]:
@@ -953,7 +956,7 @@ action_mapping = {
     "get_id": handle_get_id,
     "get_phone": handle_get_phone,
     "confirm_details": handle_confirm_details,
-    "await_payment_selection": handle_payment_selection,
+    "await_payment_selection": lambda p, ud, pid: handle_payment_selection(p, ud, pid),
     "ask_place_another_order": handle_ask_place_another_order,
     "choose_delivery_or_pickup": handle_choose_delivery_or_pickup,
     "get_receiver_name_pickup": handle_get_receiver_name_pickup,
