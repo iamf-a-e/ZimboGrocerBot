@@ -602,7 +602,7 @@ def handle_get_receiver_name_pickup(prompt, user_data, phone_id):
 
     update_user_state(user_data['sender'], {
         'user': user.to_dict(),
-        'step': 'get_id_pickup'
+        'step': 'get_phone_pickup'
     })
     send("Enter receiver's name.", user_data['sender'], phone_id)
     return {
@@ -632,7 +632,10 @@ def handle_get_id_pickup(prompt, user_data, phone_id):
         'step': 'await_payment_selection'
     })
     send("Enter receiver's id number.", user_data['sender'], phone_id)
-    return 
+    return {
+        'step': 'await_payment_selection',
+        'user': user.to_dict()
+    }
 
     
     if user.checkout_data.get("delivery_method") == "pickup":
