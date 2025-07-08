@@ -901,7 +901,13 @@ def handle_payment_selection(selection, user_data, phone_id):
 def handle_ask_place_another_order(prompt, user_data, phone_id):
     if prompt.lower() in ["yes", "y", "1"]:
         update_user_state(user_data['sender'], {'step': 'choose_category'})
-        send("Great! Please select a category:\n" + list_categories(), user_data['sender'], phone_id)
+        send(
+            f"Alright {user.payer_name}! Here are products from *{first_category}*:\n"
+            f"{first_products}\n\n"
+            f"If you're done shopping in the *{first_category}* category.\n"
+            "Type 'more' to see the next category.",
+            user_data['sender'], phone_id
+        )
         return {'step': 'choose_category'}
     else:
         payment_option = user_data.get("selected_payment_method")
