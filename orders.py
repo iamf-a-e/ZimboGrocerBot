@@ -220,6 +220,7 @@ class OrderSystem:
         fresh.add_product(Product("Dairibord Yoghurt 150ml", 15.99, "Yoghurt", 10))
         self.add_category(fresh)
         
+        stationery = Category("Stationery")
         stationery.add_product(Product("Plastic Cover 3 Meter Roll", 7.99, "Plastic cover", 10))
         stationery.add_product(Product("Ruler 30cm", 6.99, "Ruler", 10))
         stationery.add_product(Product("A4 Bond Paper White", 126.99, "Bond paper", 10))
@@ -239,6 +240,7 @@ class OrderSystem:
         stationery.add_product(Product("32 Page Newsprint Plain Exercise Book (10 Pack)", 36.99, "Plain exercise books", 10))
         self.add_category(stationery)
         
+        baby_section = Category("Baby")
         baby_section.add_product(Product("Huggies Dry Comfort Jumbo Size 5 (44s)", 299.99, "Diapers", 10))
         baby_section.add_product(Product("Pampers Fresh Clean Wipes 64 Pack", 31.90, "Baby wipes", 10))
         baby_section.add_product(Product("Johnson and Johnson Scented Baby Jelly 325ml", 52.99, "Baby jelly", 10))
