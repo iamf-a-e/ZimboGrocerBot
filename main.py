@@ -663,20 +663,6 @@ def handle_default(prompt, user_data, phone_id):
     send("Sorry, I didn't understand that. Please try again.", user_data['sender'], phone_id)
     return {'step': user_data.get('step', 'ask_name')}
 
-# Utility functions
-def get_user_state(phone_number):
-    get_user_state(phone_number)
-    if state:
-        state['_id'] = str(state['_id'])  # Convert ObjectId to string
-        return state
-    return {'step': 'ask_name', 'sender': phone_number}
-
-def update_user_state(phone_number, updates):
-    updates['phone_number'] = phone_number
-    if 'sender' not in updates:
-        updates['sender'] = phone_number
-    update_user_state(phone_number, updates)
-
 
 def list_categories():
     order_system = OrderSystem()
