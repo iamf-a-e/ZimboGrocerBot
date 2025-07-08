@@ -111,8 +111,10 @@ def show_cart(user):
     total = sum(p.price*q for p, q in cart)
     return "\n".join(lines) + f"\n\nTotal: R{total:.2f}"
 
-def list_delivery_areas(delivery_areas):
-    return "\n".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()])
+def list_delivery_areas(areas):
+    return "\n".join(
+        [f"{i+1}. {area} - ${fee}" for i, (area, fee) in enumerate(areas.items())]
+    )
 
 def send(answer, sender, phone_id):
     url = f"https://graph.facebook.com/v19.0/{phone_id}/messages"
@@ -423,8 +425,24 @@ def handle_post_add_menu(prompt, user_data, phone_id):
 def handle_get_area(prompt, user_data, phone_id):
     user = User.from_dict(user_data['user'])
     delivery_areas = user_data['delivery_areas']
+    area_names = user_data.get("area_names", list(delivery_areas.keys()))  # fallback if not stored
     area = prompt.strip().title()
 
+    # Check if input is a number
+    if prompt.strip().isdigit():
+        index = int(prompt.strip()) - 1
+        if 0 <= index < len(area_names):
+            area = area_names[index]
+        else:
+            send(f"❌ Invalid number. Please choose from:\n{list_delivery_areas(delivery_areas)}", user_data['sender'], phone_id)
+            return {
+                'step': 'get_area',
+                'delivery_areas': delivery_areas,
+                'area_names': area_names,
+                'user': user.to_dict()
+            }
+
+    # HARARE special case
     if area.lower() == "harare":
         send("Would you like to *pick up* or *have it delivered*?", user_data['sender'], phone_id)
         update_user_state(user_data['sender'], {
@@ -437,6 +455,7 @@ def handle_get_area(prompt, user_data, phone_id):
             'user': user.to_dict()
         }
 
+    # VALID area
     elif area in delivery_areas:
         user.checkout_data["delivery_area"] = area
         fee = delivery_areas[area]
@@ -455,13 +474,16 @@ def handle_get_area(prompt, user_data, phone_id):
             'user': user.to_dict()
         }
 
+    # INVALID area
     else:
-        send(f"Invalid area. Please choose from:\n{list_delivery_areas(delivery_areas)}", user_data['sender'], phone_id)
+        send(f"❌ Invalid area. Please choose from:\n{list_delivery_areas(delivery_areas)}", user_data['sender'], phone_id)
         return {
             'step': 'get_area',
             'delivery_areas': delivery_areas,
+            'area_names': area_names,
             'user': user.to_dict()
         }
+
 
 def handle_choose_delivery_or_pickup(prompt, user_data, phone_id):
     user = User.from_dict(user_data['user'])
@@ -929,14 +951,16 @@ def message_handler(prompt, sender, phone_id):
     
             user = User.from_dict(user_state['user'])
             
-            update_user_state(sender, {
+            area_names = list(delivery_areas.keys())
+
+            update_user_state(user_data['sender'], {
                 'step': 'get_area',
                 'delivery_areas': delivery_areas,
-                'user': user.to_dict(),
-
+                'area_names': area_names,
+                'user': user.to_dict()
             })
-    
-            send("Please select your delivery area:\n" + list_delivery_areas(delivery_areas), sender, phone_id)
+            
+            send("Please select your delivery area by number:\n" + list_delivery_areas(delivery_areas), user_data['sender'], phone_id)
             return
         else:
             send("Please reply with 1 to add more items or 2 to continue to delivery.", sender, phone_id)
