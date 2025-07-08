@@ -814,8 +814,6 @@ def show_cart(user):
     total = sum(p.price*q for p, q in cart)
     return "\n".join(lines) + f"\n\nTotal: R{total:.2f}"
 
-def list_delivery_areas(delivery_areas):
-    return "\n".join([f"{k} - R{v:.2f}" for k, v in delivery_areas.items()])
 
 def send(answer, sender, phone_id):
     url = f"https://graph.facebook.com/v19.0/{phone_id}/messages"
