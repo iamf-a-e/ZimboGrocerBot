@@ -329,16 +329,20 @@ def handle_post_add_menu(prompt, user_data, phone_id):
             'user': user.to_dict()
         }
     elif prompt.lower() in ["add", "add item", "add another", "add more", "4"]:
-        # Set step to 'choose_product' (not 'save_name')
         order_system = OrderSystem()
-        categories_products = order_system.get_products_by_category()  # dict {category_name: formatted_str}
-    
-        # Save state for category navigation
-        category_names = list(categories_products.keys())
-        current_index = 0
-        first_category = category_names[current_index]
-        first_products = categories_products[first_category]
-    
+        categories_products = order_system.get_products_by_category()
+        
+        # 🧠 Try to continue from previous state
+        category_names = user_data.get("category_names") or list(categories_products.keys())
+        current_index = user_data.get("current_category_index", 0)
+        
+        # Prevent out-of-range errors
+        if current_index >= len(category_names):
+            current_index = 0
+        
+        current_category = category_names[current_index]
+        first_products = categories_products.get(current_category, "No products found.")
+
         update_user_state(user_data['sender'], {
             'step': 'choose_product',
             'user': user.to_dict(),
