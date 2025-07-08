@@ -895,7 +895,7 @@ def message_handler(prompt, sender, phone_id):
     
             update_user_state(sender, {
                 'step': 'choose_product',
-                user = User.from_dict(user_state['user']),
+                user = User.from_dict(user_state['user'])
                 'category_names': category_names,
                 'current_category_index': current_index
             })
