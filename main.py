@@ -156,7 +156,7 @@ def handle_save_name(prompt, user_data, phone_id):
     send(
         f"Hie {user.payer_name}! Here are products from *{first_category}*:\n"
         f"{first_products}\n\n"
-        f"End of *{first_category}* category.\n"
+        f"If you're done shopping in the *{first_category}* category.\n"
         "Type 'more' to see the next category.",
         user_data['sender'], phone_id
     )
@@ -203,7 +203,7 @@ def handle_next_category(user_data, phone_id):
     send(
         f"Here are products from *{next_category}*:\n"
         f"{next_products}\n\n"
-        f"End of *{next_category}* category.\n"
+        f"If you're done shopping in the *{next_category}* category.\n"
         "Type 'more' to see the next category.",
         user_data['sender'], phone_id
     )
