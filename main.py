@@ -325,9 +325,12 @@ What would you like to do next?
 def handle_post_add_menu(prompt, user_data, phone_id):
     user = User.from_dict(user_data['user'])   
    
-    if prompt.lower() in ["view", "view groceries selected", "1"]:
-        cart_message = show_cart(user)
-    
+    if prompt.lower() in ["delivery", "continue to delivery", "1"]:
+        user = User.from_dict(user_data['user'])
+        update_user_state(... step='choose_delivery_or_pickup' ...)
+        send("Would you like:\n1. 🚚 Delivery\n2. 🛍️ Pickup (Harare CBD)", sender, phone_id)
+        return {'step': 'choose_delivery_or_pickup', 'user': user.to_dict()}
+        
         update_user_state(user_data['sender'], {
             'step': 'cart_next_action',
             'user': user.to_dict()
@@ -472,7 +475,7 @@ def handle_await_remove_quantity(prompt, user_data, phone_id):
 
     send(
         f"✅ Removed {qty_to_remove} x {item_name}.\n{show_cart(user)}\n"
-        "What would you like to do next?\n1 View Groceries Selected\n4 Add Item",
+        "What would you like to do next?\n1 Continue to Delivery\n4 Add Item",
         user_data['sender'], phone_id
     )
     return {'step': 'post_add_menu', 'user': user.to_dict()}
