@@ -164,43 +164,49 @@ def handle_save_name(prompt, user_data, phone_id):
 
 
 def handle_next_category(user_data, phone_id):
+    # Get state from Redis
     state = get_user_state(user_data['sender'])
+
     category_names = state.get('category_names', [])
     current_index = state.get('current_category_index', 0)
-    
-    # Move to next category
-    current_index += 1
-    
-    if current_index >= len(category_names):
-        send(
-            "No more categories. You can now select a product or type 'menu' to go back.",
-            user_data['sender'], phone_id
-        )
-        return {'step': 'choose_product', 'user': state.get('user')}
-    
-    # Create instance of OrderSystem and fetch products again
+
+    # Increment index
+    next_index = current_index + 1
+
+    if next_index >= len(category_names):
+        send("No more categories. You can now select a product or type 'menu' to go back.",
+             user_data['sender'], phone_id)
+        return {
+            'step': 'choose_product',
+            'user': state.get('user'),
+            'category_names': category_names,
+            'current_category_index': current_index
+        }
+
+    next_category = category_names[next_index]
     order_system = OrderSystem()
     categories_products = order_system.get_products_by_category()
-    
-    next_category = category_names[current_index]
-    next_products = categories_products[next_category]
-    
-    # Update user state
+    next_products = categories_products.get(next_category, "No products found.")
+
+    # Update user state in Redis
     update_user_state(user_data['sender'], {
         'step': 'choose_product',
-        'user': state.get('user'),
+        'user': state['user'],  # keep as-is, dictionary
         'category_names': category_names,
-        'current_category_index': current_index
+        'current_category_index': next_index
     })
-    
-    message = (
-        f"Here are products from {next_category}:\n"
-        f"{next_products}\n\nReply 'more' to see next category."
-    )
-    send(message, user_data['sender'], phone_id)
-    
-    return {'step': 'choose_product', 'user': state.get('user')}
 
+    send(
+        f"Here are products from {next_category}:\n{next_products}\n\nReply 'more' to see next category.",
+        user_data['sender'], phone_id
+    )
+
+    return {
+        'step': 'choose_product',
+        'user': state['user'],
+        'category_names': category_names,
+        'current_category_index': next_index
+    }
 
 
 
