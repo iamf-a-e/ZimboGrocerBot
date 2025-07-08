@@ -153,12 +153,12 @@ def handle_save_name(prompt, user_data, phone_id):
     })
 
     send(
-        f"Thanks {user.payer_name}! Here are products from {first_category}:
-{first_products}
+    f"Thanks {user.payer_name}! Here are products from {first_category}:\n"
+    f"{first_products}\n\n"
+    "Reply 'more' to see next category.",
+    user_data['sender'], phone_id
+)
 
-Reply 'more' to see next category.",
-        user_data['sender'], phone_id
-    )
     return {'step': 'choose_product', 'user': user.to_dict()}
 
 def handle_choose_product(prompt, user_data, phone_id):
