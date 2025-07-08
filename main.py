@@ -351,8 +351,8 @@ def handle_post_add_menu(prompt, user_data, phone_id):
     
         send(
             cart_message + "\n\nWhat would you like to do next?\n"
-            "1️⃣ Add more items\n"
-            "2️⃣ Continue to delivery",
+            "1️. Add more items\n"
+            "2️. Continue to delivery",
             user_data['sender'],
             phone_id
         )
@@ -913,9 +913,8 @@ def message_handler(prompt, sender, phone_id):
     
             current_category = category_names[current_index]
             first_products = categories_products.get(current_category, "No products found.")
-    
             user = User.from_dict(user_state['user'])
-            
+    
             update_user_state(sender, {
                 'step': 'choose_product',
                 'user': user.to_dict(),
@@ -950,18 +949,18 @@ def message_handler(prompt, sender, phone_id):
             }
     
             user = User.from_dict(user_state['user'])
-            
             area_names = list(delivery_areas.keys())
-
-            update_user_state(user_data['sender'], {
+    
+            update_user_state(sender, {
                 'step': 'get_area',
                 'delivery_areas': delivery_areas,
                 'area_names': area_names,
                 'user': user.to_dict()
             })
-            
-            send("Please select your delivery area by number:\n" + list_delivery_areas(delivery_areas), user_data['sender'], phone_id)
+    
+            send("Please select your delivery area by number:\n" + list_delivery_areas(delivery_areas), sender, phone_id)
             return
+    
         else:
             send("Please reply with 1 to add more items or 2 to continue to delivery.", sender, phone_id)
             return
@@ -972,6 +971,7 @@ def message_handler(prompt, sender, phone_id):
     step = user_state.get('step') or 'ask_name'
     updated_state = get_action(step, prompt, user_state, phone_id)
     update_user_state(sender, updated_state)
+    
 
 # Flask app
 app = Flask(__name__)
