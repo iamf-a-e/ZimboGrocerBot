@@ -323,22 +323,7 @@ What would you like to do next?
     
     
 def handle_post_add_menu(prompt, user_data, phone_id):
-    user = User.from_dict(user_data['user'])
-    delivery_areas = {
-        "Harare": 240,
-        "Chitungwiza": 300,
-        "Mabvuku": 300,
-        "Ruwa": 300,
-        "Domboshava": 250,
-        "Southlea": 300,
-        "Southview": 300,
-        "Epworth": 300,
-        "Mazoe": 300,
-        "Chinhoyi": 350,
-        "Banket": 350,
-        "Rusape": 400,
-        "Dema": 300
-    }
+    user = User.from_dict(user_data['user'])   
    
     if prompt.lower() in ["view", "view groceries selected", "1"]:
         cart_message = show_cart(user)
@@ -502,24 +487,36 @@ def handle_choose_delivery_or_pickup(prompt, user_data, phone_id):
         }
 
     elif choice in ['delivery', 'deliver']:
-        user.checkout_data['area'] = 'Harare'
+        delivery_areas = {
+            "Harare": 240,
+            "Chitungwiza": 300,
+            "Mabvuku": 300,
+            "Ruwa": 300,
+            "Domboshava": 250,
+            "Southlea": 300,
+            "Southview": 300,
+            "Epworth": 300,
+            "Mazoe": 300,
+            "Chinhoyi": 350,
+            "Banket": 350,
+            "Rusape": 400,
+            "Dema": 300
+        }
+        area_names = list(delivery_areas.keys())
+    
         update_user_state(user_data['sender'], {
             'user': user.to_dict(),
-            'step': 'get_receiver_name',
-            'delivery_type': 'delivery',
-            'area': 'Harare'
+            'step': 'get_area',
+            'delivery_areas': delivery_areas,
+            'area_names': area_names
         })
-        send("What's the full name of the receiver?", user_data['sender'], phone_id)
+    
+        send("Please select your delivery area by number:\n" + list_delivery_areas(delivery_areas), user_data['sender'], phone_id)
         return {
-            'step': 'get_receiver_name',
+            'step': 'get_area',
             'user': user.to_dict()
         }
 
-    send("Please reply with *pickup* or *delivery*.", user_data['sender'], phone_id)
-    return {
-        'step': 'choose_delivery_or_pickup',
-        'user': user.to_dict()
-    }
 
 def handle_get_receiver_name_pickup(prompt, user_data, phone_id):
     user = User.from_dict(user_data['user'])
@@ -934,7 +931,7 @@ def message_handler(prompt, sender, phone_id):
                 'step': 'choose_delivery_or_pickup',
                 'user': user.to_dict()
             })
-            send("Would you like *delivery* or *pickup* in Harare CBD?", sender, phone_id)
+            send("Would you like:\n1. 🚚 Delivery\n2. 🛍️ Pickup (Harare CBD)", sender, phone_id)
             return
 
     
