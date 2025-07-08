@@ -894,7 +894,7 @@ def message_handler(prompt, sender, phone_id):
     
             update_user_state(sender, {
                 'step': 'choose_product',
-                'user': user.to_dict(),
+                user = User.from_dict(user_state['user']),
                 'category_names': category_names,
                 'current_category_index': current_index
             })
@@ -928,7 +928,8 @@ def message_handler(prompt, sender, phone_id):
             update_user_state(sender, {
                 'step': 'get_area',
                 'delivery_areas': delivery_areas,
-                'user': user.to_dict()
+                user = User.from_dict(user_state['user'])
+
             })
     
             send("Please select your delivery area:\n" + list_delivery_areas(delivery_areas), sender, phone_id)
