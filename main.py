@@ -940,6 +940,7 @@ action_mapping = {
     "get_area": handle_get_area,
     "ask_checkout": handle_ask_checkout,
     "await_remove_item": handle_await_remove_item,
+    "await_remove_quantity": handle_await_remove_quantity,
     "choose_delivery_or_pickup": handle_choose_delivery_or_pickup,
     "get_receiver_name": handle_get_receiver_name,
     "get_address": handle_get_address,
