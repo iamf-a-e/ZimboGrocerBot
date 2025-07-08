@@ -327,7 +327,10 @@ def handle_post_add_menu(prompt, user_data, phone_id):
    
     if prompt.lower() in ["delivery", "continue to delivery", "1"]:
         user = User.from_dict(user_data['user'])
-        update_user_state(... step='choose_delivery_or_pickup' ...)
+        update_user_state(user_data['sender'], {
+        'user': user.to_dict(),
+        'step': 'choose_delivery_or_pickup'
+    })
         send("Would you like:\n1. 🚚 Delivery\n2. 🛍️ Pickup (Harare CBD)", sender, phone_id)
         return {'step': 'choose_delivery_or_pickup', 'user': user.to_dict()}
         
