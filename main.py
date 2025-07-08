@@ -313,8 +313,8 @@ def handle_ask_quantity(prompt, user_data, phone_id):
     })
     send('''Item added to your cart.
 What would you like to do next?
-1. View cart
-2. Clear cart
+1. View Groceries Selected
+2. Remove Groceries Selected
 3. Remove <item>
 4. Add Item''', user_data['sender'], phone_id)
     return {'step': 'post_add_menu', 'user': user.to_dict()}
@@ -339,7 +339,7 @@ def handle_post_add_menu(prompt, user_data, phone_id):
     }
     
    
-    if prompt.lower() in ["view", "view cart", "1"]:   
+    if prompt.lower() in ["view", "view groceries selected", "1"]:   
         cart_message = show_cart(user)
         update_user_state(user_data['sender'], {
             'step': 'get_area',
@@ -352,13 +352,13 @@ def handle_post_add_menu(prompt, user_data, phone_id):
             'user': user.to_dict()
         }
 
-    elif prompt.lower() in ["clear", "clear cart", "2"]:    
+    elif prompt.lower() in ["clear", "remove groceries selected", "2"]:    
         user.clear_cart()
         update_user_state(user_data['sender'], {
             'user': user.to_dict(),
             'step': 'post_add_menu'
         })
-        send("Cart cleared.\nWhat would you like to do next?\n1 View cart\n4 Add Item", user_data['sender'], phone_id)
+        send("Cart cleared.\nWhat would you like to do next?\n1 View Groceries Selected\n4 Add Item", user_data['sender'], phone_id)
         return {
             'step': 'post_add_menu',
             'user': user.to_dict()
@@ -370,7 +370,7 @@ def handle_post_add_menu(prompt, user_data, phone_id):
             'user': user.to_dict(),
             'step': 'post_add_menu'
         })
-        send(f"{item} removed from cart.\n{show_cart(user)}\nWhat would you like to do next?\n1 View cart\n4 Add Item", user_data['sender'], phone_id)
+        send(f"{item} removed from cart.\n{show_cart(user)}\nWhat would you like to do next?\n1 View Groceries Selected\n4 Add Item", user_data['sender'], phone_id)
         return {
             'step': 'post_add_menu',
             'user': user.to_dict()
@@ -591,7 +591,7 @@ def handle_ask_checkout(prompt, user_data, phone_id):
             'user': user.to_dict(),
             'step': 'post_add_menu'
         })
-        send("What would you like to do next?\n1 View cart\n2 Clear cart\n3 Remove <item>\n4 Add Item", user_data['sender'], phone_id)
+        send("What would you like to do next?\n1 View Groceries Selected\n2 Remove Groceries Selected\n3 Remove <item>\n4 Add Item", user_data['sender'], phone_id)
         return {'step': 'post_add_menu', 'user': user.to_dict()}
     else:
         send("Please respond with 'yes' or 'no'.", user_data['sender'], phone_id)
