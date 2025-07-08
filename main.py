@@ -359,7 +359,7 @@ def handle_post_add_menu(prompt, user_data, phone_id):
         send(
             f"Sure! Here are products from *{current_category}*:\n"
             f"{first_products}\n\n"
-            f"End of *{current_category}* category.\n"
+            f"If you're done shopping in the *{current_category}* category.\n"
             "Type 'more' to see the next category.",
             user_data['sender'],
             phone_id
