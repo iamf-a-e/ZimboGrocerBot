@@ -155,6 +155,23 @@ def handle_save_name(prompt, user_data, phone_id):
     return {'step': 'choose_product', 'user': user.to_dict()}
 
 
+def reduce_stock(user):
+    for item in user.cart:
+        product = item["product"]
+        quantity = item["quantity"]
+        product.stock -= quantity
+        if product.stock <= 0:
+            product.active = False
+
+
+
+def admin_set_stock(product_name, stock_value):
+    for category in self.categories:
+        for product in self.categories[category]:
+            if product.name.lower() == product_name.lower():
+                product.stock = stock_value
+                product.active = stock_value > 0
+
 
 def handle_next_category(user_data, phone_id):
     if 'category_names' not in user_data or 'current_category_index' not in user_data:
