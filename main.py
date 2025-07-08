@@ -914,7 +914,7 @@ def handle_ask_place_another_order(prompt, user_data, phone_id):
             'current_category_index': 0
         })
         send(
-            f"Alright {user.payer_name}! Here are products from *{first_category}*:\n"
+            f"Alright! Here are products from *{first_category}*:\n"
             f"{first_products}\n\n"
             f"If you're done shopping in the *{first_category}* category.\n"
             "Type 'more' to see the next category.",
