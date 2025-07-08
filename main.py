@@ -339,16 +339,24 @@ def handle_post_add_menu(prompt, user_data, phone_id):
     }
     
    
-    if prompt.lower() in ["view", "view groceries selected", "1"]:   
+    if prompt.lower() in ["view", "view groceries selected", "1"]:
         cart_message = show_cart(user)
+    
         update_user_state(user_data['sender'], {
-            'step': 'get_area',
-            'delivery_areas': delivery_areas
+            'step': 'cart_next_action',
+            'user': user.to_dict()
         })
-        send(cart_message + "\n\nPlease select your delivery area:\n" + list_delivery_areas(delivery_areas), user_data['sender'], phone_id)
+    
+        send(
+            cart_message + "\n\nWhat would you like to do next?\n"
+            "1️⃣ Add more items\n"
+            "2️⃣ Continue to delivery",
+            user_data['sender'],
+            phone_id
+        )
+    
         return {
-            'step': 'get_area',
-            'delivery_areas': delivery_areas,
+            'step': 'cart_next_action',
             'user': user.to_dict()
         }
 
@@ -870,6 +878,65 @@ def message_handler(prompt, sender, phone_id):
         updated_state = handle_previous_category(user_state, phone_id)
         update_user_state(sender, updated_state)
         return
+
+    if user_state.get("step") == "cart_next_action":
+        if text == "1":
+            order_system = OrderSystem()
+            categories_products = order_system.get_products_by_category()
+            category_names = user_state.get("category_names") or list(categories_products.keys())
+            current_index = user_state.get("current_category_index", 0)
+    
+            if current_index >= len(category_names):
+                current_index = 0
+    
+            current_category = category_names[current_index]
+            first_products = categories_products.get(current_category, "No products found.")
+    
+            update_user_state(sender, {
+                'step': 'choose_product',
+                'user': user.to_dict(),
+                'category_names': category_names,
+                'current_category_index': current_index
+            })
+    
+            send(
+                f"Sure! Here are products from *{current_category}*:\n"
+                f"{first_products}\n\n"
+                f"End of *{current_category}* category.\n"
+                "Type 'more' to see the next category or 'back' to see previous one.",
+                sender, phone_id
+            )
+            return
+    
+        elif text == "2":
+            delivery_areas = {
+                "Harare": 240,
+                "Chitungwiza": 300,
+                "Mabvuku": 300,
+                "Ruwa": 300,
+                "Domboshava": 250,
+                "Southlea": 300,
+                "Southview": 300,
+                "Epworth": 300,
+                "Mazoe": 300,
+                "Chinhoyi": 350,
+                "Banket": 350,
+                "Rusape": 400,
+                "Dema": 300
+            }
+    
+            update_user_state(sender, {
+                'step': 'get_area',
+                'delivery_areas': delivery_areas,
+                'user': user.to_dict()
+            })
+    
+            send("Please select your delivery area:\n" + list_delivery_areas(delivery_areas), sender, phone_id)
+            return
+        else:
+            send("Please reply with 1 to add more items or 2 to continue to delivery.", sender, phone_id)
+            return
+
 
 
     # ✅ Safe fallback
