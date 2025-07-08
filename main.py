@@ -317,7 +317,7 @@ def handle_ask_quantity(prompt, user_data, phone_id):
 What would you like to do next?
 1. View Groceries Selected
 2. Remove Groceries Selected
-3. Remove <item>
+3. Remove Item
 4. Add Item''', user_data['sender'], phone_id)
     return {'step': 'post_add_menu', 'user': user.to_dict()}
     
@@ -530,7 +530,7 @@ def handle_get_area(prompt, user_data, phone_id):
             'step': 'ask_checkout'
         })
 
-        send(f"{show_cart(user)}\nWould you like to checkout? (yes/no)", user_data['sender'], phone_id)
+        send(f"{show_cart(user)}\nWould you like to checkout? (1.yes/2.no)", user_data['sender'], phone_id)
         return {
             'step': 'ask_checkout',
             'user': user.to_dict()
@@ -707,7 +707,7 @@ def handle_ask_checkout(prompt, user_data, phone_id):
             'user': user.to_dict(),
             'step': 'post_add_menu'
         })
-        send("What would you like to do next?\n1 View Groceries Selected\n2 Remove Groceries Selected\n3 Remove <item>\n4 Add Item", user_data['sender'], phone_id)
+        send("What would you like to do next?\n1 View Groceries Selected\n2 Remove Groceries Selected\n3 Remove Item\n4 Add Item", user_data['sender'], phone_id)
         return {'step': 'post_add_menu', 'user': user.to_dict()}
     else:
         send("Please respond with 'yes' or 'no'.", user_data['sender'], phone_id)
@@ -762,7 +762,7 @@ def handle_get_phone(prompt, user_data, phone_id):
         f"Address: {user.checkout_data.get('address', 'N/A')}\n"
         f"ID: {details['receiver_id']}\n"
         f"Phone: {details['phone']}\n\n"
-        "Are these correct? (yes/no)"
+        "Are these correct? (1.yes/2.no)"
     )
     update_user_state(user_data['sender'], {
         'user': user.to_dict(),
@@ -860,7 +860,7 @@ def handle_payment_selection(selection, user_data, phone_id):
             f"Address: {user.checkout_data.get('address', 'N/A')}\n"
             f"Phone: {user.checkout_data.get('phone', 'N/A')}\n\n"
             f"Payment Method: {payment_text}\n\n"
-            f"Would you like to place another order? (yes/no)"
+            f"Would you like to place another order? (1.yes/2.no)"
         )
         send(confirmation_message, sender, phone_id)
 
