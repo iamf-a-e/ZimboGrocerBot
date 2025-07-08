@@ -324,6 +324,21 @@ What would you like to do next?
     
 def handle_post_add_menu(prompt, user_data, phone_id):
     user = User.from_dict(user_data['user'])
+    delivery_areas = {
+        "Harare": 240,
+        "Chitungwiza": 300,
+        "Mabvuku": 300,
+        "Ruwa": 300,
+        "Domboshava": 250,
+        "Southlea": 300,
+        "Southview": 300,
+        "Epworth": 300,
+        "Mazoe": 300,
+        "Chinhoyi": 350,
+        "Banket": 350,
+        "Rusape": 400,
+        "Dema": 300
+    }
    
     if prompt.lower() in ["view", "view groceries selected", "1"]:
         cart_message = show_cart(user)
@@ -914,34 +929,14 @@ def message_handler(prompt, sender, phone_id):
             return
     
         elif text == "2":
-            delivery_areas = {
-                "Harare": 240,
-                "Chitungwiza": 300,
-                "Mabvuku": 300,
-                "Ruwa": 300,
-                "Domboshava": 250,
-                "Southlea": 300,
-                "Southview": 300,
-                "Epworth": 300,
-                "Mazoe": 300,
-                "Chinhoyi": 350,
-                "Banket": 350,
-                "Rusape": 400,
-                "Dema": 300
-            }
-    
             user = User.from_dict(user_state['user'])
-            area_names = list(delivery_areas.keys())
-    
             update_user_state(sender, {
-                'step': 'get_area',
-                'delivery_areas': delivery_areas,
-                'area_names': area_names,
+                'step': 'choose_delivery_or_pickup',
                 'user': user.to_dict()
             })
-    
-            send("Please select your delivery area by number:\n" + list_delivery_areas(delivery_areas), sender, phone_id)
+            send("Would you like *delivery* or *pickup* in Harare CBD?", sender, phone_id)
             return
+
     
         else:
             send("Please reply with 1 to add more items or 2 to continue to delivery.", sender, phone_id)
