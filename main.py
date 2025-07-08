@@ -331,7 +331,7 @@ def handle_post_add_menu(prompt, user_data, phone_id):
         'user': user.to_dict(),
         'step': 'choose_delivery_or_pickup'
     })
-        send("Would you like:\n1. 🚚 Delivery\n2. 🛍️ Pickup (Harare CBD)", sender, phone_id)
+        send("Would you like:\n1. 🚚 Delivery\n2. 🛍️ Pickup (Harare CBD)", user_data['sender'], phone_id)
         return {'step': 'choose_delivery_or_pickup', 'user': user.to_dict()}
         
         update_user_state(user_data['sender'], {
