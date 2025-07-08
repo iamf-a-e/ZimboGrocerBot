@@ -357,18 +357,23 @@ def handle_post_add_menu(prompt, user_data, phone_id):
             'step': 'post_add_menu',
             'user': user.to_dict()
         }
-    elif prompt.lower() in ["remove", "3"]:     
-        item = prompt[7:].strip()
-        user.remove_from_cart(item)
+    elif prompt.lower() in ["3", "remove"]:
+        cart = user.get_cart_contents()
+        if not cart:
+            send("Your cart is empty. Nothing to remove.", user_data['sender'], phone_id)
+            return {'step': 'post_add_menu', 'user': user.to_dict()}
+    
+        numbered_cart = "\n".join([f"{i+1}. {p.name} x{q}" for i, (p, q) in enumerate(cart)])
         update_user_state(user_data['sender'], {
-            'user': user.to_dict(),
-            'step': 'post_add_menu'
+            'step': 'await_remove_item',
+            'user': user.to_dict()
         })
-        send(f"{item} removed from cart.\n{show_cart(user)}\nWhat would you like to do next?\n1 View Groceries Selected\n4 Add Item", user_data['sender'], phone_id)
+        send("Please select the item number to remove:\n" + numbered_cart, user_data['sender'], phone_id)
         return {
-            'step': 'post_add_menu',
+            'step': 'await_remove_item',
             'user': user.to_dict()
         }
+
     elif prompt.lower() in ["add", "add item", "add another", "add more", "4"]:
         order_system = OrderSystem()
         categories_products = order_system.get_products_by_category()
@@ -405,6 +410,35 @@ def handle_post_add_menu(prompt, user_data, phone_id):
             'step': 'choose_product',
             'user': user.to_dict()
         }
+
+
+def handle_await_remove_item(prompt, user_data, phone_id):
+    user = User.from_dict(user_data['user'])
+    cart = user.get_cart_contents()
+
+    try:
+        index = int(prompt.strip()) - 1
+        if 0 <= index < len(cart):
+            product_to_remove = cart[index][0].name
+            user.remove_from_cart(product_to_remove)
+
+            update_user_state(user_data['sender'], {
+                'user': user.to_dict(),
+                'step': 'post_add_menu'
+            })
+
+            send(
+                f"{product_to_remove} removed from cart.\n{show_cart(user)}\n"
+                "What would you like to do next?\n1 View Groceries Selected\n4 Add Item",
+                user_data['sender'], phone_id
+            )
+            return {'step': 'post_add_menu', 'user': user.to_dict()}
+        else:
+            raise IndexError
+    except:
+        send("❌ Invalid selection. Please enter a valid item number.", user_data['sender'], phone_id)
+        return {'step': 'await_remove_item', 'user': user.to_dict()}
+
 
 def handle_get_area(prompt, user_data, phone_id):
     user = User.from_dict(user_data['user'])
@@ -867,6 +901,7 @@ action_mapping = {
     "post_add_menu": handle_post_add_menu,
     "get_area": handle_get_area,
     "ask_checkout": handle_ask_checkout,
+    "await_remove_item": handle_await_remove_item,
     "get_receiver_name": handle_get_receiver_name,
     "get_address": handle_get_address,
     "get_id": handle_get_id,
