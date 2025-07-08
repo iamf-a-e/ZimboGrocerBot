@@ -324,22 +324,6 @@ What would you like to do next?
     
 def handle_post_add_menu(prompt, user_data, phone_id):
     user = User.from_dict(user_data['user'])
-    delivery_areas = {
-        "Harare": 240,
-        "Chitungwiza": 300,
-        "Mabvuku": 300,
-        "Ruwa": 300,
-        "Domboshava": 250,
-        "Southlea": 300,
-        "Southview": 300,
-        "Epworth": 300,
-        "Mazoe": 300,
-        "Chinhoyi": 350,
-        "Banket": 350,
-        "Rusape": 400,
-        "Dema": 300
-    }
-    
    
     if prompt.lower() in ["view", "view groceries selected", "1"]:
         cart_message = show_cart(user)
