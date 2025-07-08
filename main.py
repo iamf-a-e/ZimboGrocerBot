@@ -893,9 +893,11 @@ def message_handler(prompt, sender, phone_id):
             current_category = category_names[current_index]
             first_products = categories_products.get(current_category, "No products found.")
     
+            user = User.from_dict(user_state['user'])
+            
             update_user_state(sender, {
                 'step': 'choose_product',
-                user = User.from_dict(user_state['user'])
+                'user': user.to_dict(),
                 'category_names': category_names,
                 'current_category_index': current_index
             })
@@ -926,10 +928,12 @@ def message_handler(prompt, sender, phone_id):
                 "Dema": 300
             }
     
+            user = User.from_dict(user_state['user'])
+            
             update_user_state(sender, {
                 'step': 'get_area',
                 'delivery_areas': delivery_areas,
-                user = User.from_dict(user_state['user'])
+                'user': user.to_dict(),
 
             })
     
