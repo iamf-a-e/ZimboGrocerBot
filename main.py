@@ -311,6 +311,12 @@ def handle_ask_quantity(prompt, user_data, phone_id):
 
     user = User.from_dict(user_data['user'])
     pd = user_data['selected_product']
+
+    # ✅ Add safeguard here
+    if isinstance(pd, str):
+        send("⚠️ Product data is corrupted. Please reselect the product.", user_data['sender'], phone_id)
+        return {'step': 'start'}  # or whatever your initial step is
+
     product = Product(pd['name'], pd['price'], pd.get('description', ''))
     user.add_to_cart(product, qty)
 
@@ -325,7 +331,7 @@ What would you like to do next?
 3. Remove Item
 4. Add Item''', user_data['sender'], phone_id)
     return {'step': 'post_add_menu', 'user': user.to_dict()}
-    
+
     
 def handle_post_add_menu(prompt, user_data, phone_id):
     user = User.from_dict(user_data['user'])   
