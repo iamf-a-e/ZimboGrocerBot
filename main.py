@@ -165,12 +165,18 @@ def reduce_stock(user):
 
 
 
-def admin_set_stock(product_name, stock_value):
-    for category in self.categories:
-        for product in self.categories[category]:
+def admin_set_stock(self, product_name, new_stock):
+    for category in self.categories.values():
+        for product in category.products:
+            if not isinstance(product, Product):
+                continue  # Safety check
+
             if product.name.lower() == product_name.lower():
-                product.stock = stock_value
-                product.active = stock_value > 0
+                product.stock = new_stock
+                product.active = new_stock > 0
+                return f"✅ Stock for *{product.name}* set to {new_stock}."
+    return f"❌ Product *{product_name}* not found."
+
 
 
 def handle_next_category(user_data, phone_id):
