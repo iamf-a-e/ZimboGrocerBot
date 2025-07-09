@@ -1052,8 +1052,12 @@ def message_handler(prompt, sender, phone_id):
     # ✅ Admin stock control
     if sender in ADMIN_NUMBERS and prompt.lower().startswith("stock "):
         try:
-            # Example input: stock rice 10
-            _, product_name, stock_str = prompt.strip().split(" ", 2)
+            parts = prompt.strip().split(" ")
+            if len(parts) < 3:
+                raise ValueError
+    
+            stock_str = parts[-1]
+            product_name = " ".join(parts[1:-1])
             new_stock = int(stock_str)
     
             order_system = OrderSystem()
@@ -1062,6 +1066,7 @@ def message_handler(prompt, sender, phone_id):
         except ValueError:
             send("❌ Usage: stock <product_name> <new_stock>\nExample: stock rice 12", sender, phone_id)
         return
+
 
 
     if user_state.get("step") == "cart_next_action":
