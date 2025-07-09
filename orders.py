@@ -6,6 +6,16 @@ class OrderSystem:
         self.populate_products()
 
 
+    def set_stock(self, product_name, new_stock):
+        for category, products in self.get_products_by_category().items():
+            for product in products:
+                if product.name.lower() == product_name.lower():
+                    product.stock = new_stock
+                    product.active = new_stock > 0
+                    return f"✅ Stock for *{product.name}* set to {new_stock}."
+        return f"❌ Product *{product_name}* not found."
+
+    
    
     def populate_products(self):
         # Pantry
@@ -258,7 +268,9 @@ class OrderSystem:
         return list(self.categories.keys())
 
     def list_products(self, category_name):
-        return self.categories[category_name].products if category_name in self.categories else []
+        if category_name in self.categories:
+            return [p for p in self.categories[category_name].products if p.is_available()]
+        return []
 
     def get_all_products(self):
         all_products = []
@@ -275,5 +287,3 @@ class OrderSystem:
                 product_lines.append(line)
             products_by_cat[category.name] = "\n".join(product_lines)
         return products_by_cat
-
-
