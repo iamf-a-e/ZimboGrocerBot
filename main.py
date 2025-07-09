@@ -19,11 +19,6 @@ phone_id = os.environ.get("PHONE_ID")
 gen_api = os.environ.get("GEN_API")
 owner_phone = os.environ.get("OWNER_PHONE")
 redis_url = os.environ.get("REDIS_URL")
-ADMIN_NUMBERS = [
-    "263719835124",  
-    "263772210415"
-]
-
 
 # Redis client setup
 redis_client = redis.StrictRedis.from_url(redis_url, decode_responses=True)
@@ -153,27 +148,6 @@ def handle_save_name(prompt, user_data, phone_id):
 
 
     return {'step': 'choose_product', 'user': user.to_dict()}
-
-
-def reduce_stock(user):
-    for item in user.cart:
-        product = item["product"]
-        quantity = item["quantity"]
-        product.stock -= quantity
-        if product.stock <= 0:
-            product.active = False
-
-
-
-def admin_set_stock(self, product_name, stock_value):
-    for category in self.categories:
-        for product in self.categories[category].products:
-            if product.name.strip().lower() == product_name.strip().lower():
-                product.stock = stock_value
-                product.active = stock_value > 0
-                print(f"Stock updated: {product.name} is now {'active' if product.active else 'inactive'} with {product.stock} in stock.")
-                return
-    print("Product not found.")
 
 
 
@@ -1051,22 +1025,6 @@ def message_handler(prompt, sender, phone_id):
         updated_state = handle_previous_category(user_state, phone_id)
         update_user_state(sender, updated_state)
         return
-
-
-    # ✅ Admin stock control
-    if sender in ADMIN_NUMBERS and prompt.lower().startswith("stock "):
-        try:
-            # Example input: stock rice 10
-            _, product_name, stock_str = prompt.strip().split(" ", 2)
-            new_stock = int(stock_str)
-    
-            order_system = OrderSystem()
-            result = order_system.set_stock(product_name, new_stock)
-            send(result, sender, phone_id)
-        except ValueError:
-            send("❌ Usage: stock <product_name> <new_stock>\nExample: stock rice 12", sender, phone_id)
-        return
-
 
     if user_state.get("step") == "cart_next_action":
         if text == "1":
